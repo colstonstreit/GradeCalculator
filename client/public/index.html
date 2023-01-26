@@ -9,7 +9,6 @@
       name="description"
       content="Web site created using create-react-app"
     />
-    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
     <!--
       manifest.json provides metadata used when your web app is installed on a
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
@@ -24,20 +23,30 @@
       work correctly both with client-side routing and a non-root public URL.
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
-    <title>React App</title>
+    <title>Grade Calculator</title>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="alert" style="display: none;"></div>
     <div id="root"></div>
-    <!--
-      This HTML file is a template.
-      If you open it directly in the browser, you will see an empty page.
-
-      You can add webfonts, meta tags, or analytics to this file.
-      The build step will place the bundled scripts into the <body> tag.
-
-      To begin the development, run `npm start` or `yarn start`.
-      To create a production bundle, use `npm run build` or `yarn build`.
-    -->
+    <script>
+      /* Display any success or error message sent by the server upon redirect. */
+      const alertDiv = document.getElementById("alert");
+      alertDiv.innerHTML = "";
+      const urlParams = new URLSearchParams(window.location.search);
+      const errorMessage = urlParams.get('error');
+      const successMessage = urlParams.get('success');
+      const infoMessage = urlParams.get('info');
+      alertDiv.style.display = (errorMessage !== null || successMessage !== null || infoMessage !== null) ? 'initial' : 'none';
+      if (errorMessage) {
+        alertDiv.innerHTML += `<p style='color: red;'>Error: ${errorMessage}</p>`
+      }
+      if (successMessage) {
+        alertDiv.innerHTML += `<p style='color: green;'>${successMessage}</p>`
+      }
+      if (infoMessage) {
+        alertDiv.innerHTML += `<p style='color: black;'>${infoMessage}</p>`
+      }
+    </script>
   </body>
 </html>

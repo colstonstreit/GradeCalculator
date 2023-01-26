@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=1000" />
+  <title>Colston Streit's Website</title>
+  <link rel="stylesheet" href="css/main.css">
+</head>
+
+<body>
+
+  <header>
+    <h1>Welcome to Colston Streit's Website! (in progress)</h1>
+  </header>
+
+  <nav id="topNav">
+    <div id="topNavListContainer">
+      <ul id="topNavList">
+        <li><a class="topNavActive" href="index.html">Welcome Page</a></li>
+        <li><a href="#">Resume</a></li>
+        <li><a href="#">Projects</a></li>
+        <li><a href="#">Work Experience</a></li>
+        <li><a href="coursework.html">Coursework</a></li>
+        <li><a href="#">Updates</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <div id="main">
+    <div id="sideNavContainer" class="horizontal" style="visibility: hidden;">
+      <nav id="sideNav">
+        <div id="sideNavListContainer">
+          <h1>Content Overview</h1>
+          <ul id="sideNavList">
+
+            <li><a href="#aboutMe">About Me</a></li>
+            <li><a href="#aboutSite">About This Site</a></li>
+
+          </ul>
+        </div>
+      </nav>
+    </div>
+
+    <div id="pageContentContainer" class="horizontal">
+      <div id="pageContent">
+
+        <h1>Grade Calculator</h1>
+
+        <p>Enter your assignments, their weights, and your scores on them here!</p>
+
+        <div>Course:
+          <select id="savedCourses" onchange="switchCourse(this.value);">
+
+          </select>
+        </div>
+        <hr>
+
+        <div id="entryTableDiv">
+        </div>
+
+        <hr>
+
+        <h2>Current Score</h2>
+        <p id="scoreSoFar"></p>
+
+        <h2>Statistics</h2>
+        <p>Desired Score: <input type="text" id="desiredScore" value="93" oninput="updateDesiredScore(this);"></p>
+        <div id="statistics">
+
+        </div>
+
+
+
+        <footer>
+          <h3>Contact</h3>
+          <p>Email: colstonstreit@gmail.com</p>
+          <p>GitHub: <a href="https://github.com/colstonstreit">https://github.com/colstonstreit</a></p>
+          <p>LinkedIn: <a
+              href="https://www.linkedin.com/in/colston-streit/">https://www.linkedin.com/in/colston-streit/</a></p>
+        </footer>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Calculation Scripts -->
+
+  <script>
+
+    class GradeInfo {
+      constructor(knowns={}, unknowns={}) {
+        this.knowns = knowns;
+        this.unknowns = unknowns;
+      }
+
+      setKnown(name, weight, score) {
+        this.knowns[name] = {"score": score, "weight": weight};
+      }
+
+      setUnknown(name, weight) {
+        this.unknowns[name] = {"weight": weight};
+      }
+
+      getTotalWeight() {
+        let total = 0;
+        for (let key of Object.keys(this.knowns)) {
+          total += this.knowns[key].weight;
+        }
+        for (let key of Object.keys(this.unknowns)) {
+          total += this.unknowns[key].weight;
+        }
+        return total;
+      }
+
+      scaleWeights(multiplier) {
+        for (let key of Object.keys(this.knowns)) {
+          this.knowns[key].weight *= multiplier;
+        }
+        for (let key of Object.keys(this.unknowns)) {
+          this.unknowns[key].weight *= multiplier;
+        }
+      }
+
+      union(other) {
+        for (let key of Object.keys(other.knowns)) {
+          this.knowns[key] = other.knowns[key];
+        }
+        for (let key of Object.keys(other.unknowns)) {
+          this.unknowns[key] = other.unknowns[key];
+        }
+      }
+
+      getScore() {
+        let score = 0;
+        for (let key of Object.keys(this.knowns)) {
+          score += this.knowns[key].score * this.knowns[key].weight / 100;
+        }
+        return score;
+      }
+
+      getScoreSoFar() {
+        let totalScoreSoFar = this.getScore();
+        let totalWeightSoFar = this.getWeightSoFar();
+        if (totalWeightSoFar == 0) return 100;
+        return totalScoreSoFar / totalWeightSoFar * 100;
+      }
+
+      getWeightSoFar() {
+        let totalWeightSoFar = 0;
+        for (let key of Object.keys(this.knowns)) {
+          totalWeightSoFar += this.knowns[key].weight;
+        }
+        return totalWeightSoFar;
+      }
+    }
+
+    class Category {
+
+      static numCategories = 0;
+      static categoryIdMap = {};
+
+      constructor(name, weight, score=null, subcategories=[], parent=null) {
+        this.name = name; // Name of category (e.g. Homework)
+        this.weight = weight; // All relative
+        this.score = score; // Float from 0 to 100
+        this.subcategories = subcategories; // List of subcategories
+        this.id = Category.numCategories++; // Unique ID for easy lookup
+        this.parent = parent; // Link to parent
+        this.childrenHidden = false; // Whether subcategories are hidden
+        Category.categoryIdMap[this.id] = this;
+      }
+
+      static findCategoryById(id) {
+        if (Category.categoryIdMap[id] != null) {
+          return Category.categoryIdMap[id];
+        }
+        return null;
+      }
+
+      static removeCategoryWithId(id) {
+        let category = Category.findCategoryById(id);
+        if (category == null) return;
+        if (baseCategory.subcategories.length == 1 && category == baseCategory.subcategories[0]) {
+          category.name = "";
+          category.weight = 100;
+          category.score = null;
+          category.subcategories.length = 0;
+          return;
+        }
+        category.deleteSelf();
+      }
+
+      getTotalSubWeights() {
+        let total = 0;
+        for (sub of this.subcategories) {
+          if (sub.weight != null) {
+            total += sub.weight;
+          }
+        }
+        return total;
+      }
+
+      getLeveledOutInfo() {
+
+        let ret = new GradeInfo();
+        if (this.weight == null) {
+          return ret;
+        }
+
+        if (this.subcategories.length == 0 && this.name != "") {
+          if (this.score != null) {
+            ret.setKnown(this.name, this.weight, this.score);
+          } else {
+            ret.setUnknown(this.name, this.weight);
+          }
+        } else {
+          for (sub of this.subcategories) {
+            if (sub.weight != null) {
+              let data = sub.getLeveledOutInfo();
+              ret.union(data);
+            }
+          }
+          ret.scaleWeights(this.weight / ret.getTotalWeight());
+        }
+        return ret;
+      }
+
+      deleteSelf() {
+        for (let sub of this.subcategories) {
+          delete Category.categoryIdMap[sub.id];
+        }
+        delete Category.categoryIdMap[this.id];
+        if (this.parent != null) {
+          this.parent.subcategories = this.parent.subcategories.filter(cat => cat != this);
+        }
+      }
+
+      hasScore() {
+        if (this.score != null) {
+          return true;
+        }
+        for (let sub of this.subcategories) {
+          if (sub.hasScore()) {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      setScore(newScore) {
+        if (this.subcategories.length != 0) {
+          console.error("Cannot set score of category with subcategories!");
+          return;
+        }
+        this.score = newScore;
+      }
+
+      toJSONObject() {
+        let ret = {};
+        ret.name = this.name;
+        if (this.weight != null) {
+          ret.weight = this.weight;
+        }
+        if (this.score != null) {
+          ret.score = this.score;
+        }
+        if (this.subcategories.length > 0) {
+          let array = [];
+          for (let sub of this.subcategories) {
+            array.push(sub.toJSONObject())
+          }
+          ret.subcategories = array;
+        }
+        return ret;
+      }
+
+    }
+
+    // Turns a JSON object into a category, setting the parent to the given parent
+    function createCategoryFromJSONObject(obj, parent=null) {
+      let subcategories = [];
+      if (obj.subcategories != null) {
+        for (sub of obj.subcategories) {
+          let category = createCategoryFromJSONObject(sub, obj);
+          subcategories.push(category);
+        }
+      }
+
+      let name = obj.name;
+      let weight = obj.weight;
+      if (weight == null) {
+        weight = 100;
+      }
+      let score = obj.score;
+      let newCategory = new Category(name, weight, score, subcategories, parent);
+      for (let sub of subcategories) {
+        sub.parent = newCategory;
+      }
+      return newCategory;
+    }
+
+    function generateHTMLProxy(baseCategory) {
+      let div = document.getElementById("entryTableDiv");
+      let html = "";
+      for (let sub of baseCategory.subcategories) {
+        html += `<div>${generateCategoryHTML(sub)}</div>`;
+      }
+
+      html += `<div style="text-align: center;"><button style="text-align: right;" onclick="saveCourse();">Save Course</button></div>`;
+
+      div.innerHTML = html;
+
+      updateScoreSoFar();
+    }
+
+    function generateCategoryHTML(category) {
+
+      let html = "";
+
+      html += "<p>";
+      html += `Name: <span><input type="text" value="${category.name}" placeholder="e.g. Homework" oninput="updateCategoryName(${category.id}, this);"></span>`;
+
+      weightText = category.weight == null ? "" : category.weight;
+      html += `Weight: <span><input type="text" value="${weightText}" placeholder="e.g. 5 (worth 5x 1)" oninput="updateCategoryWeight(${category.id}, this);"></span>`;
+
+      if (category.subcategories.length == 0) {
+        scoreText = category.score == null ? "" : category.score;
+        html += `Score: <span><input type="text" value="${scoreText}" placeholder="e.g. 87.5 or 7/8" oninput="updateCategoryScore(${category.id}, this);"></span>`;
+        html += `<button onclick="addSubCategory(${category.id});">Add Subcategory</button>`;
+      }
+
+      html += `<button onclick="deleteCategory(${category.id});">Delete</button>`;
+
+      if (category.subcategories.length > 0) {
+        html += `<div class="indent">`;
+        let subcategoryText = category.childrenHidden ? "Subcategories: [hidden]" : "Subcategories:";
+        let displayText = category.childrenHidden ? "none" : "block";
+
+        html += `<p class="hideable" onclick="hideSubcategories(${category.id}, this);">${subcategoryText}</p>`;
+        for (sub of category.subcategories) {
+          html += `<div style="display: ${displayText};">${generateCategoryHTML(sub)}</div>`;
+        }
+        html += `</div>`;
+      }
+
+      if (category == category.parent.subcategories[category.parent.subcategories.length - 1]) {
+        html += `<p><button style="margin: auto" onclick="addCategory(${category.id})">Add Assignment</button></p>`;
+      }
+      return html;
+    }
+
+    // Adds a subcategory to the category with the given ID and updates the HTML
+    function addSubCategory(parentId) {
+      category = Category.findCategoryById(parentId);
+      if (category != null) {
+        let value;
+        do {
+          value = prompt("How many subcategories do you want?");
+          if (value == null || value == "") return;
+        } while (isNaN(value));
+
+        for (let i = 0; i < parseInt(value); i++) {
+          category.subcategories.push(new Category(category.name + "_" + (i + 1), 1, null, [], category));
+        }
+        generateHTMLProxy(baseCategory);
+      }
+    }
+
+    // Adds a new category at the same level as the category with the given ID and updates the HTML
+    function addCategory(childId) {
+      category = Category.findCategoryById(childId);
+      if (category != null) {
+        category.parent.subcategories.push(new Category("", null, null, [], category.parent));
+        generateHTMLProxy(baseCategory);
+      }
+    }
+
+    // Deletes the category with the given ID and updates the HTML
+    function deleteCategory(id) {
+      Category.removeCategoryWithId(id);
+      generateHTMLProxy(baseCategory);
+    }
+
+    // Called whenever a name inputField is updated
+    function updateCategoryName(id, inputField) {
+      category = Category.findCategoryById(id);
+      inputField.value = inputField.value.trim();
+      if (category != null) {
+        category.name = inputField.value;
+      }
+    }
+
+    // Called wheenver a weight inputField is updated. Handles floats
+    function updateCategoryWeight(id, inputField) {
+      category = Category.findCategoryById(id);
+      inputField.value = inputField.value.trim();
+      if (category != null) {
+        if (!isNaN(inputField.value) && inputField.value != "") {
+          category.weight = parseFloat(inputField.value);
+        } else {
+          inputField.value = "";
+          category.weight = null;
+        }
+      }
+      updateScoreSoFar();
+    }
+
+    // Called whenever a score inputField is updated. Handles floats or fractions of floats
+    function updateCategoryScore(id, inputField) {
+      category = Category.findCategoryById(id);
+      inputField.value = inputField.value.trim();
+      inputField.style.border = "";
+      if (category != null) {
+        if (!isNaN(inputField.value) && inputField.value != "") {
+          category.score = parseFloat(inputField.value);
+        } else if (inputField.value.match(/^[0-9]+(\.[0-9]+)?\/[0-9]+(\.[0-9]+)?$/g) != null) {
+          let slashIndex = inputField.value.indexOf('\/');
+          start = parseFloat(inputField.value.substring(0, slashIndex));
+          end = parseFloat(inputField.value.substring(slashIndex + 1));
+          category.score = start / end * 100;
+        } else if (inputField.value.indexOf('\/') != -1 && inputField.value.match(/^([0-9|\.|\/])+$/g)) {
+          category.score = null;
+          inputField.style.border = "1px solid red";
+        } else {
+          inputField.value = "";
+          category.score = null;
+        }
+      }
+      updateScoreSoFar();
+    }
+
+    // Called when the subcategories message is clicked: toggles visibility of subcategories
+    function hideSubcategories(id, paragraph) {
+      let children = paragraph.parentElement.children;
+      for (let child of children) {
+        if (child != paragraph) {
+          child.style.display = (child.style.display == "none") ? "block" : "none";
+          paragraph.innerText = (child.style.display == "block") ? "Subcategories:" : "Subcategories: [hidden]";
+        }
+      }
+      category = Category.findCategoryById(id);
+      if (category != null) {
+        category.childrenHidden = !category.childrenHidden;
+      }
+    }
+
+    // Called every time weights or scores are updated: updates paragraph containing current score details
+    function updateScoreSoFar() {
+      let p = document.getElementById("scoreSoFar");
+      let text = "";
+      gradeInfo = baseCategory.getLeveledOutInfo();
+      let score = Math.round(gradeInfo.getScore() * 1000) / 1000;
+      let scoreSoFar = Math.round(gradeInfo.getScoreSoFar() * 1000) / 1000;
+      text += `Of the ${gradeInfo.getWeightSoFar()} points that have been determined so far, you have received ${score}, meaning your current score is ${scoreSoFar}%.`;
+      p.innerHTML = text;
+      updateStatisticsDiv();
+    }
+
+    // Called when saving a course, as a new entry to the dropdown might be added
+    function updateDropdown(selectedKey = null) {
+      let dropdown = document.getElementById("savedCourses");
+      let html = "";
+      for (key of Object.keys(history)) {
+        if (selectedKey == null && key == "Template" || selectedKey == key) {
+          html += `<option value="${key}" selected>${key}</option>`;
+        } else {
+          html += `<option value="${key}">${key}</option>`;
+        }
+      }
+      dropdown.innerHTML = html;
+    }
+
+    // Called when dropdown option is clicked - switches baseCategory to chosen one
+    function switchCourse(title) {
+      if (confirm("Would you like to save this course before switching?")) {
+        saveCourse(baseCategory.name);
+      }
+      baseCategory = createCategoryFromJSONObject(history[title]);
+      generateHTMLProxy(baseCategory);
+      updateDropdown(title);
+      updateScoreSoFar();
+      window.localStorage.setItem("mostRecentCourse", title);
+    }
+
+    // Saves the course with the given title to the history. If no title is given, the user is prompted to give one
+    function saveCourse(title=null) {
+      if (title == null) {
+        do {
+          title = prompt("Enter a name to save this under.");
+          if (title == null || title == "") return;
+        } while (title == null || title.trim() == "");
+        title = title.trim();
+      }
+      baseCategory.name = title;
+      history[title] = baseCategory.toJSONObject();
+      window.localStorage.setItem("history", JSON.stringify(history));
+      window.localStorage.setItem("mostRecentCourse", title);
+      updateDropdown(title);
+    }
+
+    function updateDesiredScore(inputField) {
+      inputField.value = inputField.value.trim();
+      if (!isNaN(inputField.value) && inputField.value != "") {
+        desiredScore = parseFloat(inputField.value);
+      } else {
+        desiredScore = null;
+        inputField.value = "";
+      }
+      updateStatisticsDiv();
+    }
+
+    function getEquationHTML() {
+      if (desiredScore == null) {
+        desiredScore = 93;
+      }
+
+      let unknownEquationText = "";
+      let i = 0;
+      let numUnknowns = Object.keys(gradeInfo.unknowns).length;
+      for (key of Object.keys(gradeInfo.unknowns)) {
+        let weight = Math.round(gradeInfo.unknowns[key].weight * 1000) / 1000;
+        if (i == numUnknowns - 1) {
+          unknownEquationText += `${weight}*${key}`;
+        } else {
+          unknownEquationText += `${weight}*${key} + `;
+        }
+        i++;
+      }
+
+      let currentScore = Math.floor(gradeInfo.getScore() * 1000) / 1000;
+      let ret = "<ul>";
+      if (currentScore != 0) {
+        ret += `<li>${currentScore} + ${unknownEquationText} >= ${desiredScore}</li>`;
+      }
+      ret += `<li>${unknownEquationText} >= ${Math.ceil((desiredScore - currentScore) * 1000) / 1000}</li>`;
+      if (numUnknowns == 1) {
+        let unknown = Object.keys(gradeInfo.unknowns)[0];
+        let requiredScore = Math.ceil((desiredScore - currentScore) / gradeInfo.unknowns[unknown].weight * 10000) / 10000;
+        ret += `<li>${unknown} >= ${requiredScore}</li>`;
+        ret += `<li>Thus, you need to score at least ${requiredScore * 100}% on "${unknown}" to get a grade of ${desiredScore}% in this course.</li>`;
+      }
+
+      ret += "</ul>";
+
+      return ret;
+    }
+
+    function updateStatisticsDiv() {
+
+      let div = document.getElementById("statistics");
+
+      let unknownVars = Object.keys(gradeInfo.unknowns);
+      let numUnknowns = unknownVars.length;
+      if (numUnknowns == 0) {
+        div.innerHTML = "<p>There are no unknowns to examine!</p>";
+        return;
+      }
+
+      let html = "";
+      let equationText = getEquationHTML();
+
+      if (numUnknowns == 1) {
+        html += `<p>There is 1 unknown to examine: ${unknownVars[0]}.</p>`;
+        html += `${equationText}`;
+        div.innerHTML = html;
+        return;
+      }
+
+      html += `<p>There are ${numUnknowns} unknowns to examine:</p>`;
+      html += `<ul>`;
+      for (key of unknownVars) {
+        html += `<li>${key}</li>`;
+      }
+      html += `</ul>`;
+      html += `<p>Equation:</p>`;
+      html += `${equationText}`;
+
+      div.innerHTML = html;
+    }
+
+    let history = {};
+    let storage = window.localStorage.getItem("history");
+    let mostRecent = window.localStorage.getItem("mostRecentCourse");
+    let baseCategory = null;
+    let gradeInfo = null;
+    let desiredScore = 93;
+
+    if (storage != null) {
+      let courses = JSON.parse(storage);
+      for (key of Object.keys(courses)) {
+        history[key] = courses[key];
+      }
+      let mostRecentKey = (mostRecent == null) ? "Template" : mostRecent;
+      baseCategory = createCategoryFromJSONObject(history[mostRecentKey]);
+      window.localStorage.setItem("mostRecentCourse", mostRecentKey);
+    } else {
+      let template = {
+        name: "Template",
+        subcategories: [
+          {
+            name: "Homework",
+            weight: 30
+          }, {
+            name: "Exam",
+            weight: 70
+          }
+        ]
+      }
+      baseCategory = createCategoryFromJSONObject(template);
+      saveCourse('Template');
+      window.localStorage.setItem("mostRecentCourse", "Template");
+    }
+    generateHTMLProxy(baseCategory);
+    updateDropdown(baseCategory.name);
+    gradeInfo = baseCategory.getLeveledOutInfo();
+
+  </script>
+
+</body>
+
+</html>
