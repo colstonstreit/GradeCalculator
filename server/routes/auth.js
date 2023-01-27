@@ -55,8 +55,6 @@ authRouter.post("/login", async (req, res) => {
   }
 });
 
-
-
 // Log out
 authRouter.post("/logout", (req, res) => {
   if (req.user) {

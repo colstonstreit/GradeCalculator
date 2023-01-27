@@ -1,0 +1,123 @@
+*, *:before, *:after {
+  margin: 0px;
+  padding: 0px;
+  box-sizing: border-box;
+  line-height: 1.5;
+}
+
+button {
+  cursor: pointer;
+}
+
+form {
+  display: block;
+  height: inherit;
+  text-align: inherit;
+}
+
+:root {
+  --background-color: rgb(180, 180, 180);
+  --main-content-color: white;
+  --link-color: rgb(93, 0, 255);
+}
+
+html {
+  background-color: white;
+}
+
+nav {
+  display: flex;
+  gap: 1rem;
+  width: fit-content;
+  align-items: center;
+  background-color: #444;
+  width: 100%;
+  height: 4rem;
+  font-size: 2rem;
+  text-align: center;
+  text-justify: center;
+}
+
+nav {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  align-content: center;
+  justify-content: center;
+}
+
+nav a, nav form button {
+  text-decoration: none;
+  margin: 0;
+  color: black;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding-inline: 1rem;
+  background-color: #BBB;
+  font-size: 1.5rem;
+  font-family: Arial;
+  border: none;
+  transition: background-color 0.2s;
+}
+
+nav a:hover, nav form button:hover {
+  background-color: #999;
+}
+
+.courseTitle {
+  text-align: center;
+}
+
+.courseContainer {
+  max-width: 1000px;
+  margin-inline: auto;
+}
+
+div.inline {
+  display: inline-block;
+}
+
+div.gradeRowContentWrapper {
+  padding-block: 0.75rem;
+  padding-left: 0.5rem;
+  border: 1px solid black;
+  display: flex;
+  gap: 0.5rem;
+  font-weight: bold;
+}
+
+div.gradeRowButtons {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+  width: fit-content;
+  padding-right: 0.5rem;
+}
+
+div.gradeRowButtons button {
+  padding-inline: 1rem;
+}
+
+input[type="text"] {
+  width: 20ch;
+  text-align: center;
+  border-width: 0px;
+  color: black;
+  font-size: 1rem;
+  font-family: inherit;
+  margin-left: 0.25rem;
+}
+
+input[type="text"].weight {
+  width: 10ch;
+}
+
+input[type="text"].score {
+  width: 5ch;
+}
+
+input[type="text"]:disabled {
+  color: black;
+  font-weight: bold;
+}

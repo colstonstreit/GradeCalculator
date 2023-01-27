@@ -12,18 +12,21 @@ app.use(express.urlencoded({ extended: true }))
 const cookieParser = require('cookie-parser');
 app.use(cookieParser());
 
+// Get routers
 const auth = require("./routes/auth");
+const user = require("./routes/user");
 
 // Add Auth Status
 app.use((req, res, next) => {
-  const authToken = req.cookies['AuthToken'];
+  const authToken = req.cookies["AuthToken"];
   req.user = auth.authTokenMap[authToken];
   req.authToken = authToken;
   next();
 })
 
 // Use Routers
-app.use('/api/auth/', auth.router);
+app.use("/api/auth", auth.router);
+app.use("/api/user", user.router);
 
 // Default to React App for other routing
 const path = require("path");
