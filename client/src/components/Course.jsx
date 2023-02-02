@@ -1,57 +1,44 @@
-import React, { useState, useEffect } from "react";
-import { json, Link, useParams } from "react-router-dom";
+import React, { useState } from "react";
+import { useParams } from "react-router-dom";
+import * as Util from "../util";
 
-let lastID = 1;
+const numRegex = /^([0-9]+((\.)|(\.[0-9]{0,3}))?)?$/;
+const alphaNumRegex = /^([0-9a-zA-z ]){0,20}$/;
+const depthColors = ["#777", "#AAA", "#DDD", "#FFF"];
 
-function newCategory() {
-  return {
-    name: `Placeholder${lastID++}`,
-    weight: 1,
-    score: null,
-  };
-}
+function SmartInput({
+  regex,
+  numeric,
+  initValue = "",
+  handleUpdate,
+  className = "",
+}) {
+  const [value, setValue] = useState(initValue);
 
-function createJSONObject(
-  name,
-  weight,
-  score = undefined,
-  children = undefined
-) {
-  let obj = { name: name, weight: weight };
-  if (score !== undefined) obj.score = score;
-  if (children !== undefined) obj.children = children;
-  return obj;
-}
-
-function calculateScore(children) {
-  let totalWeight = 0;
-  let totalSum = 0;
-  for (let child of children) {
-    const isLeaf = child.children === undefined;
-    if (isLeaf && child.score !== null && child.weight !== null) {
-      totalWeight += child.weight;
-      totalSum += child.weight * child.score;
-    } else if (!isLeaf && child.weight !== null) {
-      totalWeight += child.weight;
-      totalSum += child.weight * calculateScore(child.children);
+  function onUpdate(e) {
+    if (regex.test(e.target.value)) {
+      setValue(e.target.value);
+      if (numeric) {
+        handleUpdate(
+          !isNaN(e.target.value) && e.target.value !== ""
+            ? parseFloat(e.target.value)
+            : null
+        );
+      } else {
+        handleUpdate(e.target.value);
+      }
     }
   }
-  if (totalWeight === 0) return "N/A";
-  return Math.round((totalSum / totalWeight) * 100) / 100;
-}
 
-function SmartInput({ regex, initValue = "", handleUpdate, className = "" }) {
-  const [value, setValue] = useState(initValue);
   return (
     <input
       className={`transparent ${className}`}
       type="text"
       value={value ?? ""}
-      onChange={(e) => {
-        if (regex.test(e.target.value)) {
-          setValue(e.target.value);
-          handleUpdate(e.target.value === "" ? null : e.target.value);
-        }
+      onChange={onUpdate}
+      onBlur={(e) => {
+        e.target.value = e.target.value.trim();
+        onUpdate(e);
       }}
     />
   );
@@ -61,11 +48,13 @@ function Category({
   info,
   depth,
   canDelete,
+  canMoveUp,
+  canMoveDown,
+  cbMoveSelf,
   cbDeleteSelf,
   cbAddAfterSelf,
   cbUpdateParent,
 }) {
-  const depthColors = ["#BBB", "#DDD", "#FFF"];
   const backColor = depth < depthColors.length ? depthColors[depth] : "#00FF00";
   const backColorStyle = { backgroundColor: backColor };
 
@@ -79,7 +68,7 @@ function Category({
     if (children.length === 1) {
       handleFieldsChange(["score", "children"], [null, undefined]);
     } else {
-      handleFieldsChange(["children"], [deleteFromArray(children, idx)]);
+      handleFieldsChange(["children"], [Util.deleteFromArray(children, idx)]);
     }
   }
 
@@ -98,9 +87,8 @@ function Category({
           <div className="gradeName inline">
             Name:{" "}
             <SmartInput
-              type="text"
               initValue={name}
-              regex={/[0-9a-zA-z]*/}
+              regex={alphaNumRegex}
               handleUpdate={(newVal) => handleFieldsChange(["name"], [newVal])}
             />
           </div>
@@ -108,8 +96,8 @@ function Category({
             Weight:{" "}
             <SmartInput
               className="weight"
-              regex={/^([0-9]+(\.[0-9]{1,3})?)*$/}
-              type="text"
+              regex={numRegex}
+              numeric
               initValue={weight}
               handleUpdate={(newVal) =>
                 handleFieldsChange(["weight"], [newVal])
@@ -121,7 +109,8 @@ function Category({
               Score:{" "}
               <SmartInput
                 className="score"
-                regex={/^([0-9]+(\.[0-9]{1,3})?)*$/}
+                regex={numRegex}
+                numeric
                 initValue={score}
                 handleUpdate={(newVal) =>
                   handleFieldsChange(["score"], [newVal])
@@ -132,55 +121,71 @@ function Category({
           {!isLeaf && (
             <div className="gradeScoreAuto">
               Score:{" "}
-              <input className="score" disabled type="text" value={scoreText} />
+              <input
+                className="score transparent"
+                disabled
+                type="text"
+                value={scoreText}
+              />
             </div>
           )}
           <div className="gradeRowButtons">
-            <button onClick={cbAddAfterSelf}>Add</button>
             {!isLeaf && (
               <button onClick={() => setHidden((prev) => !prev)}>
                 {hidden ? "Show" : "Hide"}
               </button>
             )}
-            <button
-              onClick={() => {
-                const newChildren =
-                  children === undefined
-                    ? [newCategory()]
-                    : [...children, newCategory()];
-                handleFieldsChange(
-                  ["score", "children"],
-                  [undefined, newChildren]
-                );
-              }}
-            >
-              Add Sub
-            </button>
-            {(depth > 0 || canDelete) && (
-              <button onClick={() => cbDeleteSelf()}>Delete</button>
+            {depth < depthColors.length - 1 && (
+              <button
+                onClick={() => {
+                  const newChildren =
+                    children === undefined
+                      ? [newCategory()]
+                      : [...children, newCategory()];
+                  handleFieldsChange(
+                    ["score", "children"],
+                    [undefined, newChildren]
+                  );
+                }}
+              >
+                Add Sub
+              </button>
             )}
+            {canMoveUp && <button onClick={() => cbMoveSelf(-1)}>Up</button>}
+            {canMoveDown && <button onClick={() => cbMoveSelf(1)}>Down</button>}
+            {(depth > 0 || canDelete) && (
+              <button onClick={() => cbDeleteSelf()}>X</button>
+            )}
+            <button onClick={cbAddAfterSelf}>+</button>
           </div>
         </div>
       </div>
       {!isLeaf && !hidden && (
         <div className="gradeChildren">
-          {info.children.map((c, idx) => (
+          {children.map((c, idx) => (
             <Category
-              key={c.name}
-              showAdd={idx === info.children.length - 1}
+              key={c.id}
               info={c}
               depth={depth + 1}
+              canMoveUp={idx > 0}
+              canMoveDown={idx < children.length - 1}
+              cbMoveSelf={(dir) => {
+                handleFieldsChange(
+                  ["children"],
+                  [Util.swapInArray(children, idx, idx + dir)]
+                );
+              }}
               cbDeleteSelf={() => deleteChild(idx)}
               cbAddAfterSelf={() =>
                 handleFieldsChange(
                   ["children"],
-                  [addToArray(children, idx, newCategory())]
+                  [Util.addToArray(children, idx, newCategory())]
                 )
               }
               cbUpdateParent={(newData) =>
                 handleFieldsChange(
                   ["children"],
-                  [replaceInArray(children, idx, newData)]
+                  [Util.replaceInArray(children, idx, newData)]
                 )
               }
             />
@@ -191,53 +196,127 @@ function Category({
   );
 }
 
-function deleteFromArray(array, idx) {
-  const arrayCopy = [...array];
-  arrayCopy.splice(idx, 1);
-  return arrayCopy;
+let lastID = 1;
+function newID() {
+  return lastID++;
+}
+function newCategory() {
+  const id = newID();
+  return {
+    name: `Item ${id}`,
+    weight: 1,
+    score: null,
+    id: id,
+  };
 }
 
-function addToArray(array, idx, item) {
-  const arrayCopy = [...array];
-  arrayCopy.splice(idx + 1, 0, item);
-  return arrayCopy;
+function calculateScore(children) {
+  let totalWeight = 0;
+  let totalSum = 0;
+  for (let child of children) {
+    const isLeaf = child.children === undefined;
+    if (isLeaf && child.score !== null && child.weight !== null) {
+      totalWeight += child.weight;
+      totalSum += child.weight * child.score;
+    } else if (!isLeaf && child.weight !== null) {
+      const score = calculateScore(child.children);
+      if (score !== "N/A") {
+        totalWeight += child.weight;
+        totalSum += child.weight * score;
+      }
+    }
+  }
+  if (totalWeight === 0) return "N/A";
+  return Math.round((totalSum / totalWeight) * 100) / 100;
 }
 
-function replaceInArray(array, idx, item) {
-  const arrayCopy = [...array];
-  arrayCopy[idx] = item;
-  return arrayCopy;
+function addIDs(children) {
+  for (let child of children) {
+    if (child.id === undefined) {
+      child.id = newID();
+      if (child.children !== undefined) {
+        addIDs(child.children);
+      }
+    }
+  }
+  return children;
+}
+
+function getChildrenWithoutIDs(children) {
+  const childrenCopy = Util.createDeepCopy(children);
+  for (let child of childrenCopy) {
+    if (child.id !== undefined) {
+      delete child.id;
+      if (child.children !== undefined) {
+        child.children = getChildrenWithoutIDs(child.children);
+      }
+    }
+  }
+  return childrenCopy;
+}
+
+function saveDataToDatabase(originalTitle, courseIndex, data) {
+  console.log("Original Title:", originalTitle);
+  console.log("Course Index:", courseIndex);
+  console.log("New Data:", data);
 }
 
 export default function Course({ user }) {
   const { title } = useParams();
-  const courseInfo = user.courses.find((course) => course.title === title);
+  const courseIndex = user.courses.findIndex(
+    (course) => course.title === title
+  );
+  const courseInfo = user.courses[courseIndex];
 
-  const [gradeData, setGradeData] = useState(courseInfo.categories);
+  const [gradeData, setGradeData] = useState(addIDs(courseInfo.categories));
+  const [currTitle, setCurrTitle] = useState(title);
   const scoreText = calculateScore(gradeData);
 
   return (
     <>
-      {JSON.stringify(gradeData)}
-      <h1 className="courseTitle">{`${title} Score: ${scoreText}`}</h1>
-      <h2>Score: {scoreText}</h2>
       <main className="courseContainer">
+        <h1>
+          Course Title:{" "}
+          <input
+            type="text"
+            value={currTitle}
+            onChange={(e) => setCurrTitle(e.target.value)}
+            onBlur={(e) => setCurrTitle(e.target.value.trim())}
+          />
+        </h1>
+        <h2 className="courseScore">{`Score: ${scoreText}`}</h2>
         {gradeData.map((c, idx) => (
           <Category
-            key={c.name}
+            key={c.id}
             info={c}
             depth={0}
             canDelete={gradeData.length > 1}
-            cbDeleteSelf={() => setGradeData(deleteFromArray(gradeData, idx))}
+            canMoveUp={idx > 0}
+            canMoveDown={idx < gradeData.length - 1}
+            cbMoveSelf={(dir) =>
+              setGradeData(Util.swapInArray(gradeData, idx, idx + dir))
+            }
+            cbDeleteSelf={() =>
+              setGradeData(Util.deleteFromArray(gradeData, idx))
+            }
             cbAddAfterSelf={() =>
-              setGradeData(addToArray(gradeData, idx, newCategory()))
+              setGradeData(Util.addToArray(gradeData, idx, newCategory()))
             }
             cbUpdateParent={(newData) =>
-              setGradeData(replaceInArray(gradeData, idx, newData))
+              setGradeData(Util.replaceInArray(gradeData, idx, newData))
             }
           />
         ))}
-        <button type="submit">Save Changes</button>
+        <button
+          onClick={() => {
+            saveDataToDatabase(title, courseIndex, {
+              title: currTitle,
+              categories: getChildrenWithoutIDs(gradeData),
+            });
+          }}
+        >
+          Save Changes
+        </button>
       </main>
     </>
   );
