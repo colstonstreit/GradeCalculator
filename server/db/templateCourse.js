@@ -6,10 +6,10 @@
  */
 const templateCourse = {
   title: "Template",
-    score: [
+  categories: [
       { name: "Homework", weight: 30, score: 95 },
       {
-        name: "Project", weight: 20, score: [
+        name: "Project", weight: 20, children: [
           { name: "Stage 1", weight: 25, score: 100 },
           { name: "Stage 2", weight: 25, score: 100 },
           { name: "Final Presentation", weight: 50, score: 85 }

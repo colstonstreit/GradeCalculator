@@ -1,4 +1,6 @@
-*, *:before, *:after {
+*,
+*:before,
+*:after {
   margin: 0px;
   padding: 0px;
   box-sizing: border-box;
@@ -46,7 +48,8 @@ nav {
   justify-content: center;
 }
 
-nav a, nav form button {
+nav a,
+nav form button {
   text-decoration: none;
   margin: 0;
   color: black;
@@ -54,14 +57,15 @@ nav a, nav form button {
   align-items: center;
   height: 100%;
   padding-inline: 1rem;
-  background-color: #BBB;
+  background-color: #bbb;
   font-size: 1.5rem;
   font-family: Arial;
   border: none;
   transition: background-color 0.2s;
 }
 
-nav a:hover, nav form button:hover {
+nav a:hover,
+nav form button:hover {
   background-color: #999;
 }
 
@@ -107,6 +111,10 @@ input[type="text"] {
   font-size: 1rem;
   font-family: inherit;
   margin-left: 0.25rem;
+}
+
+input[type="text"].transparent {
+  background-color: inherit;
 }
 
 input[type="text"].weight {
