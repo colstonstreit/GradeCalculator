@@ -9,21 +9,21 @@ const authTokenMap = {};
 
 // Create new Account
 authRouter.post("/register", async (req, res) => {
-
   const { username, password, confirmPassword } = req.body;
   const db = dbo.getDb();
-  const usedUsername = await db.collection("Users").findOne({ username: username});
+  const usedUsername = await db
+    .collection("Users")
+    .findOne({ username: username });
 
   if (usedUsername) {
-    util.redirect(res, "/register", { error: "Username already exists!"});
+    util.redirect(res, "/register", { error: "Username already exists!" });
   } else if (password !== confirmPassword) {
     util.redirect(res, "/register", { error: "Passwords don't match!" });
   } else {
-
     const newUser = {
       username: username,
       hashedPassword: util.getHashedPassword(password),
-      courses: [templateCourse]
+      courses: [templateCourse],
     };
     await db.collection("Users").insertOne(newUser);
     util.redirect(res, "/login", { success: "Registered successfully!" });
@@ -32,7 +32,6 @@ authRouter.post("/register", async (req, res) => {
 
 // Log into Account
 authRouter.post("/login", async (req, res) => {
-
   if (req.user) {
     util.redirect(res, "/home", { info: "You are already logged in!" });
     return;
@@ -43,13 +42,19 @@ authRouter.post("/login", async (req, res) => {
   const query = { username: username, hashedPassword: hashedPassword };
   const db = dbo.getDb();
 
-  const user = await db.collection("Users").findOne(query);
+  const user = await db
+    .collection("Users")
+    .findOne(query, { username: 1, _id: 1 });
+
   // Check result and authenticate if necessary
   if (user) {
     const authToken = util.generateAuthToken();
-    authTokenMap[authToken] = user;
+    authTokenMap[authToken] = {
+      username: user.username,
+      id: user._id.toJSON(),
+    };
     res.cookie("AuthToken", authToken, { maxAge: 3600000 });
-    res.redirect("/home");
+    res.redirect("/courses");
   } else {
     util.redirect(res, "/login", { error: "Invalid password!" });
   }
@@ -62,14 +67,14 @@ authRouter.post("/logout", (req, res) => {
     res.clearCookie("AuthToken");
   }
   res.redirect("/login");
-})
+});
 
 // Check to see if logged in
 authRouter.post("/isLoggedIn", (req, res) => {
-  res.send(req.user ? true : false)
-})
+  res.send(req.user ? true : false);
+});
 
 module.exports = {
   router: authRouter,
-  authTokenMap: authTokenMap
+  authTokenMap: authTokenMap,
 };

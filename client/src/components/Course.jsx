@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import * as Util from "../util";
 
@@ -255,21 +255,53 @@ function getChildrenWithoutIDs(children) {
   return childrenCopy;
 }
 
-function saveDataToDatabase(originalTitle, courseIndex, data) {
-  console.log("Original Title:", originalTitle);
-  console.log("Course Index:", courseIndex);
-  console.log("New Data:", data);
+async function saveDataToDatabase(originalTitle, data) {
+  const response = await fetch(`/api/courses/${originalTitle}`, {
+    method: "PUT",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      data: data,
+    }),
+  });
+  if (response.ok) {
+    window.location.replace(`/courses/${data.title}`);
+  } else {
+    alert(await response.json());
+  }
 }
 
-export default function Course({ user }) {
-  const { title } = useParams();
-  const courseIndex = user.courses.findIndex(
-    (course) => course.title === title
-  );
-  const courseInfo = user.courses[courseIndex];
+async function deleteCourse(originalTitle) {
+  const response = await fetch(`/api/courses/${originalTitle}`, {
+    method: "DELETE",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+  });
+  if (response.ok) {
+    window.location.replace(`/courses`);
+  } else {
+    alert(await response.json());
+  }
+}
 
-  const [gradeData, setGradeData] = useState(addIDs(courseInfo.categories));
+export default function Course() {
+  const { title } = useParams();
+
+  const [gradeData, setGradeData] = useState([]);
   const [currTitle, setCurrTitle] = useState(title);
+  useEffect(() => {
+    async function getCourse() {
+      const course = await (await fetch(`/api/courses/${title}`)).json();
+      setCurrTitle(course.title);
+      setGradeData(addIDs(course.categories));
+    }
+    getCourse();
+  }, [title]);
+
   const scoreText = calculateScore(gradeData);
 
   return (
@@ -309,7 +341,7 @@ export default function Course({ user }) {
         ))}
         <button
           onClick={() => {
-            saveDataToDatabase(title, courseIndex, {
+            saveDataToDatabase(title, {
               title: currTitle,
               categories: getChildrenWithoutIDs(gradeData),
             });
@@ -317,6 +349,7 @@ export default function Course({ user }) {
         >
           Save Changes
         </button>
+        <button onClick={() => deleteCourse(title)}>Delete Course</button>
       </main>
     </>
   );
