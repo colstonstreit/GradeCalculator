@@ -3,7 +3,6 @@ const { getHashedPassword } = require("../util");
 const util = require("../util");
 const authRouter = express.Router();
 const dbo = require("../db/conn");
-const templateCourse = require("../db/templateCourse");
 
 const authTokenMap = {};
 
@@ -23,7 +22,6 @@ authRouter.post("/register", async (req, res) => {
     const newUser = {
       username: username,
       hashedPassword: util.getHashedPassword(password),
-      courses: [templateCourse],
     };
     await db.collection("Users").insertOne(newUser);
     util.redirect(res, "/login", { success: "Registered successfully!" });
