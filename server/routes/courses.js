@@ -45,6 +45,7 @@ courseRouter.post("/", async (req, res) => {
     title: title,
     userID: req.user.id,
     categories: templateCourse.categories,
+    desiredScore: 90,
   };
 
   await db.collection("Courses").insertOne(newCourse);
@@ -75,6 +76,7 @@ courseRouter.get("/:title", async (req, res) => {
   res.send({
     title: result.title,
     categories: result.categories,
+    desiredScore: result.desiredScore,
   });
 });
 
@@ -87,9 +89,9 @@ courseRouter.put("/:title", async (req, res) => {
   }
 
   // Make sure course with that title exists
-  const title = req.params.title;
+  const originalTitle = req.params.title;
   const db = dbo.getDb();
-  const query = { title: title, userID: req.user.id };
+  const query = { title: originalTitle, userID: req.user.id };
   const existingCourse = await db.collection("Courses").findOne(query);
   if (!existingCourse) {
     res.status(404).json("That course doesn't exist!");
@@ -101,7 +103,7 @@ courseRouter.put("/:title", async (req, res) => {
     title: req.body.data.title,
     userID: req.user.id,
   });
-  if (sameName) {
+  if (sameName && sameName.title !== originalTitle) {
     res.status(400).json("You already have a course with this name.");
     return;
   }
@@ -111,6 +113,7 @@ courseRouter.put("/:title", async (req, res) => {
     $set: {
       title: req.body.data.title,
       categories: req.body.data.categories,
+      desiredScore: req.body.data.desiredScore,
     },
   };
   db.collection("Courses").updateOne(query, newData, function (err, response) {

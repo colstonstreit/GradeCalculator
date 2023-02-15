@@ -38,13 +38,6 @@ nav {
   font-size: 2rem;
   text-align: center;
   text-justify: center;
-}
-
-nav {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  align-content: center;
   justify-content: center;
 }
 
@@ -76,6 +69,7 @@ nav form button:hover {
 .courseContainer {
   max-width: 1000px;
   margin-inline: auto;
+  margin-block: 2rem;
 }
 
 div.inline {
@@ -128,4 +122,40 @@ input[type="text"].score {
 input[type="text"]:disabled {
   color: black;
   font-weight: bold;
+}
+
+input[type="text"].courseTitle {
+  font: inherit;
+  font-weight: normal;
+  text-align: left;
+}
+
+ul {
+  padding-left: 1em;
+}
+
+li {
+  list-style-position: inside;
+}
+
+.manageButtons,
+.desiredScore {
+  display: inline-block;
+}
+
+.manageButtons {
+  display: flex;
+  gap: 1rem;
+}
+
+.scoreButtonContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.requiredGrade,
+.scoreButtonContainer,
+.statistics {
+  margin-top: 1rem;
 }

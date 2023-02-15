@@ -6,11 +6,11 @@
 const templateCourse = {
   title: "Template",
   categories: [
-    { name: "Homework", weight: 50, score: 100 },
+    { name: "Homework", weight: 50, score: null },
     {
       name: "Midterm",
       weight: 25,
-      score: 100,
+      score: null,
     },
     { name: "Final", weight: 25, score: null },
   ],
