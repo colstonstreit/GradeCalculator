@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import * as ArrayUtil from "../lib/arrayUtil";
-import createDeepCopy from "../lib/createDeepCopy";
 import NetworkAPI from "../lib/networkAPI";
 import AuthenticatedPage from "./AuthenticatedPage";
 

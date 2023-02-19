@@ -8,7 +8,6 @@ const templateCourse = {
   root: {
     name: "Root",
     weight: 100,
-    score: null,
     children: [
       { name: "Homework", weight: 50, score: null },
       {
