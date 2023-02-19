@@ -12,10 +12,10 @@ import LoginPage from "./components/LoginPage";
 import RegisterPage from "./components/RegisterPage";
 import CourseList from "./components/CourseList";
 import Course from "./components/Course";
-import useUserInfo from "./hooks/useUserInfo";
+import useInitialLoginStatus from "./hooks/useInitialLoginStatus";
 
 export default function App() {
-  const user = useUserInfo();
+  const user = useInitialLoginStatus();
 
   return (
     <>
@@ -24,28 +24,16 @@ export default function App() {
         <Routes>
           <Route exact path="/" element={<LandingPage user={user} />} />
           <Route exact path="/login" element={<LoginPage user={user} />} />
-          <Route
-            exact
-            path="/register"
-            element={<RegisterPage user={user} />}
-          />
+          <Route exact path="/register" element={<RegisterPage user={user} />} />
           <Route
             exact
             path="/courses"
-            element={
-              user.loggedIn ? (
-                <CourseList user={user} />
-              ) : (
-                <Navigate to="/login" />
-              )
-            }
+            element={user.loggedIn ? <CourseList user={user} /> : <Navigate to="/login" />}
           />
           <Route
             exact
             path="/courses/:title"
-            element={
-              user.loggedIn ? <Course user={user} /> : <Navigate to="/login" />
-            }
+            element={user.loggedIn ? <Course user={user} /> : <Navigate to="/login" />}
           />
 
           {/* <Route path="/edit/:id" element={<Edit />} />

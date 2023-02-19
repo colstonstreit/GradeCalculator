@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import NetworkAPI from "../lib/networkAPI";
+import AuthenticatedPage from "./AuthenticatedPage";
 
 function addNewCourse() {
   let title = prompt("What would you like to name your course?");
@@ -38,7 +39,7 @@ export default function CourseList({ user }) {
   if (!loaded) return "";
 
   return (
-    <>
+    <AuthenticatedPage>
       <div className="courseListContainer">
         {courses.map((courseName, idx) => (
           <Link key={courseName} to={`/courses/${courseName}`}>
@@ -47,6 +48,6 @@ export default function CourseList({ user }) {
         ))}
         <button onClick={addNewCourse}>Add Course</button>
       </div>
-    </>
+    </AuthenticatedPage>
   );
 }

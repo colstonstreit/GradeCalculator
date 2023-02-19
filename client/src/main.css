@@ -97,6 +97,43 @@ nav button:hover {
   top: -1rem;
 }
 
+.darkOverlay {
+  position: fixed;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+}
+
+.darkOverlay .loginPrompt {
+  background-color: white;
+  padding: 1rem;
+}
+
+.darkOverlay .loginPrompt form input[type="text"],
+.darkOverlay .loginPrompt form input[type="password"] {
+  width: 20ch;
+  font: inherit;
+  border: 1px solid black;
+  text-align: left;
+  padding: 0.25em;
+}
+
+.darkOverlay .loginPrompt form .formEntry {
+  display: flex;
+  gap: 1em;
+  justify-content: space-between;
+  margin-bottom: 1em;
+  align-items: center;
+}
+
+.darkOverlay .loginPrompt form button[type="submit"] {
+  display: block;
+  margin-inline: auto;
+  padding: 0.25em;
+}
+
 .courseTitle {
   text-align: center;
 }

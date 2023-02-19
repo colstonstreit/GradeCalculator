@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import * as Util from "../lib/util";
 import NetworkAPI from "../lib/networkAPI";
+import AuthenticatedPage from "./AuthenticatedPage";
 
 const numRegex = /^([0-9]+((\.)|(\.[0-9]{0,3}))?)?$/;
 const alphaNumRegex = /^([0-9a-zA-z ]){0,20}$/;
@@ -348,7 +349,7 @@ export default function Course() {
   if (!loaded) return "";
 
   return (
-    <>
+    <AuthenticatedPage>
       <main className="courseContainer">
         <h1>
           Course Title:{" "}
@@ -403,6 +404,6 @@ export default function Course() {
         </div>
         <GradeRequirement desiredScore={desiredScore} gradeData={flattenedData} />
       </main>
-    </>
+    </AuthenticatedPage>
   );
 }
