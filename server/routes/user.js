@@ -5,12 +5,12 @@ const dbo = require("../db/conn");
 
 userRouter.get("/loginStatus", (req, res) => {
   if (req.user) {
-    res.send({
+    res.json({
       loggedIn: true,
       username: req.user.username,
     });
   } else {
-    res.send({
+    res.json({
       loggedIn: false,
     });
   }

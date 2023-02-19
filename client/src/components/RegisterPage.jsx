@@ -1,28 +1,46 @@
 import React from "react";
 import { Link } from "react-router-dom";
 
+import NetworkAPI from "../lib/networkAPI";
+
+function handleSubmit(e) {
+  e.preventDefault();
+  const { username, password, confirmPassword } = e.target;
+  if (password.value !== confirmPassword.value) {
+    alert("Passwords do not match!");
+    return;
+  }
+  NetworkAPI.post("/api/auth/register", {
+    username: username.value,
+    password: password.value,
+  })
+    .then((_) => {
+      // Redirect to courses page
+      window.location.href = "/courses";
+    })
+    .catch(({ error }) => {
+      alert("Error: " + error);
+    });
+}
+
 export default function RegisterPage() {
   return (
     <>
       <h1>Register to Grade Calculator Here!</h1>
-      <form method="POST" action="/api/auth/register">
+      <form method="POST" action="/api/auth/register" onSubmit={handleSubmit}>
         <div>
-          <label for="usernameInput">Username: </label>
-          <input name="username" type="text" id="usernameInput" />
+          <label htmlFor="usernameInput">Username: </label>
+          <input required name="username" type="text" id="usernameInput" />
         </div>
 
         <div>
-          <label for="passwordInput">Password: </label>
-          <input name="password" type="password" id="passwordInput" />
+          <label htmlFor="passwordInput">Password: </label>
+          <input required name="password" type="password" id="passwordInput" />
         </div>
 
         <div>
-          <label for="confirmPasswordInput">Confirm Password: </label>
-          <input
-            name="confirmPassword"
-            type="password"
-            id="confirmPasswordInput"
-          />
+          <label htmlFor="confirmPasswordInput">Confirm Password: </label>
+          <input required name="confirmPassword" type="password" id="confirmPasswordInput" />
         </div>
 
         <button type="submit">Register</button>

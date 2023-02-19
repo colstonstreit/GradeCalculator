@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import * as Util from "../util";
+import * as Util from "../lib/util";
+import NetworkAPI from "../lib/networkAPI";
 
 const numRegex = /^([0-9]+((\.)|(\.[0-9]{0,3}))?)?$/;
 const alphaNumRegex = /^([0-9a-zA-z ]){0,20}$/;
@@ -216,37 +217,24 @@ function round(number, decimals = 2) {
   return Math.round(number * 10 ** decimals) / 10 ** decimals;
 }
 
-async function saveDataToDatabase(originalTitle, data) {
-  const response = await fetch(`/api/courses/${originalTitle}`, {
-    method: "PUT",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      data: data,
-    }),
-  });
-  if (response.ok) {
-    window.location.replace(`/courses/${data.title}`);
-  } else {
-    alert(await response.json());
-  }
+function saveDataToDatabase(originalTitle, data) {
+  NetworkAPI.put(`/api/courses/${originalTitle}`, data)
+    .then((_) => {
+      window.location.href = `/courses/${data.title}`;
+    })
+    .catch(({ status, error }) => {
+      alert("Error Occurred: " + status + " " + error);
+    });
 }
 
-async function deleteCourse(originalTitle) {
-  const response = await fetch(`/api/courses/${originalTitle}`, {
-    method: "DELETE",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-  });
-  if (response.ok) {
-    window.location.replace(`/courses`);
-  } else {
-    alert(await response.json());
-  }
+function deleteCourse(originalTitle) {
+  NetworkAPI.delete(`/api/courses/${originalTitle}`)
+    .then((_) => {
+      window.location.replace(`/courses`);
+    })
+    .catch(({ status, error }) => {
+      alert("Error Occurred: " + status + " " + error);
+    });
 }
 
 function flatten(data) {
@@ -333,18 +321,31 @@ export default function Course() {
   const [gradeData, setGradeData] = useState([]);
   const [currTitle, setCurrTitle] = useState(title);
   const [desiredScore, setDesiredScore] = useState(null);
+
+  const [loaded, setLoaded] = useState(false);
+
   useEffect(() => {
-    async function getCourse() {
-      const course = await (await fetch(`/api/courses/${title}`)).json();
-      setCurrTitle(course.title);
-      setGradeData(addIDs(course.categories));
-      setDesiredScore(course.desiredScore);
+    function getCourse() {
+      NetworkAPI.get(`/api/courses/${title}`)
+        .then(({ data: course }) => {
+          setCurrTitle(course.title);
+          setGradeData(addIDs(course.categories));
+          setDesiredScore(course.desiredScore);
+          setLoaded(true);
+        })
+        .catch(({ error }) => {
+          // Invalid course name, go back to list
+          alert("Course does not exist!");
+          window.location.replace("/courses");
+        });
     }
     getCourse();
   }, [title]);
 
   const flattenedData = flatten(gradeData);
   const scoreText = calculateScore(flattenedData);
+
+  if (!loaded) return "";
 
   return (
     <>

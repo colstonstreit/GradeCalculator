@@ -1,13 +1,16 @@
 import { useState, useEffect } from "react";
 
+import NetworkAPI from "../lib/networkAPI";
+
 export default function useUserInfo() {
   const [userInfo, setUserInfo] = useState({ loggedIn: null });
 
   useEffect(() => {
-    const fetchInfo = async () => {
-      const user = await (await fetch("/api/user/loginStatus")).json();
-      setUserInfo(user);
-    };
+    function fetchInfo() {
+      NetworkAPI.get("/api/user/loginStatus").then(({ data: user }) => {
+        setUserInfo(user);
+      });
+    }
     fetchInfo();
   }, []);
 

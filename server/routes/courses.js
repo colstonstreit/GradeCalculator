@@ -9,9 +9,7 @@ const ObjectId = require("mongodb").ObjectId;
 courseRouter.get("/", async (req, res) => {
   // Check for authentication
   if (!req.user) {
-    util.redirect(res, "/login", {
-      error: "You must be logged in to have courses!",
-    });
+    res.status(401).json("You are not logged in!");
     return;
   }
 
@@ -49,16 +47,14 @@ courseRouter.post("/", async (req, res) => {
   };
 
   await db.collection("Courses").insertOne(newCourse);
-  util.redirect(res, `/courses/${title}`);
+  res.status(200).send("Course created successfully.");
 });
 
 // Get specific course
 courseRouter.get("/:title", async (req, res) => {
   // Check for authentication
   if (!req.user) {
-    util.redirect(res, "/login", {
-      error: "You must be logged in to have courses!",
-    });
+    res.status(401).json("You are not logged in!");
     return;
   }
 
@@ -100,7 +96,7 @@ courseRouter.put("/:title", async (req, res) => {
 
   // Check if another course already has this name
   const sameName = await db.collection("Courses").findOne({
-    title: req.body.data.title,
+    title: req.body.title,
     userID: req.user.id,
   });
   if (sameName && sameName.title !== originalTitle) {
@@ -111,9 +107,9 @@ courseRouter.put("/:title", async (req, res) => {
   // Finally, update course
   const newData = {
     $set: {
-      title: req.body.data.title,
-      categories: req.body.data.categories,
-      desiredScore: req.body.data.desiredScore,
+      title: req.body.title,
+      categories: req.body.categories,
+      desiredScore: req.body.desiredScore,
     },
   };
   db.collection("Courses").updateOne(query, newData, function (err, response) {

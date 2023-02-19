@@ -27,8 +27,7 @@ app.use((req, res, next) => {
 
 // Log
 app.use((req, res, next) => {
-  if (req.originalUrl.startsWith("/api"))
-    console.log(req.originalUrl, req.body);
+  if (req.originalUrl.startsWith("/api")) console.log(req.method, req.originalUrl, req.body);
   next();
 });
 
@@ -40,9 +39,7 @@ app.use("/api/courses", course.router);
 // Default to React App for other routing
 const path = require("path");
 app.use(express.static("../client/build"));
-app.get("*", (req, res) =>
-  res.sendFile(path.resolve("..", "client", "build", "index.html"))
-);
+app.get("*", (req, res) => res.sendFile(path.resolve("..", "client", "build", "index.html")));
 
 // Get connection to MongoDB Database
 const dbo = require("./db/conn");
