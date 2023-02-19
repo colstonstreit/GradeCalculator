@@ -42,7 +42,7 @@ courseRouter.post("/", async (req, res) => {
   const newCourse = {
     title: title,
     userID: req.user.id,
-    categories: templateCourse.categories,
+    root: templateCourse.root,
     desiredScore: 90,
   };
 
@@ -71,7 +71,7 @@ courseRouter.get("/:title", async (req, res) => {
   // Respond with course
   res.send({
     title: result.title,
-    categories: result.categories,
+    root: result.root,
     desiredScore: result.desiredScore,
   });
 });
@@ -108,7 +108,7 @@ courseRouter.put("/:title", async (req, res) => {
   const newData = {
     $set: {
       title: req.body.title,
-      categories: req.body.categories,
+      root: req.body.root,
       desiredScore: req.body.desiredScore,
     },
   };

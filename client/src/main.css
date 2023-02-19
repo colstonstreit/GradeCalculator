@@ -62,10 +62,14 @@ nav button:hover {
   background-color: #999;
 }
 
+main {
+  max-width: 1000px;
+  margin-block: 1rem;
+  margin-inline: auto;
+}
+
 .courseListContainer {
   margin-top: 2rem;
-  max-width: 1000px;
-  margin-inline: auto;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(100px, 200px));
   justify-content: center;
@@ -136,12 +140,6 @@ nav button:hover {
 
 .courseTitle {
   text-align: center;
-}
-
-.courseContainer {
-  max-width: 1000px;
-  margin-inline: auto;
-  margin-block: 2rem;
 }
 
 div.inline {

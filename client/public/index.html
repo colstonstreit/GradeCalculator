@@ -5,10 +5,7 @@
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#000000" />
-    <meta
-      name="description"
-      content="Web site created using create-react-app"
-    />
+    <meta name="description" content="Web site created using create-react-app" />
     <!--
       manifest.json provides metadata used when your web app is installed on a
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
@@ -27,26 +24,6 @@
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="alert" style="display: none;"></div>
     <div id="root"></div>
-    <script>
-      /* Display any success or error message sent by the server upon redirect. */
-      const alertDiv = document.getElementById("alert");
-      alertDiv.innerHTML = "";
-      const urlParams = new URLSearchParams(window.location.search);
-      const errorMessage = urlParams.get('error');
-      const successMessage = urlParams.get('success');
-      const infoMessage = urlParams.get('info');
-      alertDiv.style.display = (errorMessage !== null || successMessage !== null || infoMessage !== null) ? 'initial' : 'none';
-      if (errorMessage) {
-        alertDiv.innerHTML += `<p style='color: red;'>Error: ${errorMessage}</p>`
-      }
-      if (successMessage) {
-        alertDiv.innerHTML += `<p style='color: green;'>${successMessage}</p>`
-      }
-      if (infoMessage) {
-        alertDiv.innerHTML += `<p style='color: black;'>${infoMessage}</p>`
-      }
-    </script>
   </body>
 </html>

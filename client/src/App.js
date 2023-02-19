@@ -20,27 +20,26 @@ export default function App() {
   return (
     <>
       <NavBar user={user} />
-      {user.loggedIn !== null && (
-        <Routes>
-          <Route exact path="/" element={<LandingPage user={user} />} />
-          <Route exact path="/login" element={<LoginPage user={user} />} />
-          <Route exact path="/register" element={<RegisterPage user={user} />} />
-          <Route
-            exact
-            path="/courses"
-            element={user.loggedIn ? <CourseList user={user} /> : <Navigate to="/login" />}
-          />
-          <Route
-            exact
-            path="/courses/:title"
-            element={user.loggedIn ? <Course user={user} /> : <Navigate to="/login" />}
-          />
-
-          {/* <Route path="/edit/:id" element={<Edit />} />
-          <Route path="/create" element={<Create />} /> */}
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
-      )}
+      <main>
+        {user.loggedIn !== null && (
+          <Routes>
+            <Route exact path="/" element={<LandingPage user={user} />} />
+            <Route exact path="/login" element={<LoginPage user={user} />} />
+            <Route exact path="/register" element={<RegisterPage user={user} />} />
+            <Route
+              exact
+              path="/courses"
+              element={user.loggedIn ? <CourseList user={user} /> : <Navigate to="/login" />}
+            />
+            <Route
+              exact
+              path="/courses/:title"
+              element={user.loggedIn ? <Course user={user} /> : <Navigate to="/login" />}
+            />
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        )}
+      </main>
     </>
   );
 }

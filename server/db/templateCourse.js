@@ -5,15 +5,20 @@
  */
 const templateCourse = {
   title: "Template",
-  categories: [
-    { name: "Homework", weight: 50, score: null },
-    {
-      name: "Midterm",
-      weight: 25,
-      score: null,
-    },
-    { name: "Final", weight: 25, score: null },
-  ],
+  root: {
+    name: "Root",
+    weight: 100,
+    score: null,
+    children: [
+      { name: "Homework", weight: 50, score: null },
+      {
+        name: "Midterm",
+        weight: 25,
+        score: null,
+      },
+      { name: "Final", weight: 25, score: null },
+    ],
+  },
 };
 
 module.exports = templateCourse;
