@@ -15,9 +15,15 @@ function SmartInput({ regex, numeric, initValue = "", handleUpdate, className = 
     if (regex.test(e.target.value)) {
       setValue(e.target.value);
       if (numeric) {
-        handleUpdate(!isNaN(e.target.value) && e.target.value !== "" ? parseFloat(e.target.value) : null);
+        if (
+          handleUpdate(!isNaN(e.target.value) && e.target.value !== "" ? parseFloat(e.target.value) : null) === false
+        ) {
+          setValue((oldVal) => value);
+        }
       } else {
-        handleUpdate(e.target.value);
+        if (handleUpdate(e.target.value) === false) {
+          setValue((oldVal) => value);
+        }
       }
     }
   }
@@ -40,6 +46,8 @@ function Category({
   info,
   depth,
   canDelete,
+  canBeBonus,
+  isOnlyNonBonus,
   canMoveUp,
   canMoveDown,
   cbMoveSelf,
@@ -50,7 +58,7 @@ function Category({
   const backColor = depth < depthColors.length ? depthColors[depth] : "#00FF00";
   const backColorStyle = { backgroundColor: backColor };
 
-  const { name, weight, score, children, capped } = info;
+  const { name, weight, score, children, capped = false, isBonus = false } = info;
   const [hidden, setHidden] = useState(false);
 
   const isLeaf = info.children === undefined;
@@ -69,6 +77,13 @@ function Category({
     if (children.length === 1) {
       handleFieldsChange(["score", "children"], [null, undefined]);
     } else {
+      // Must handle case of deleting only non-bonus
+      const nonBonus1 = children.findIndex((child) => !!child.isBonus === false);
+      const nonBonus2 = children.findLastIndex((child) => !!child.isBonus === false);
+      if (nonBonus1 === nonBonus2 && nonBonus2 === idx) {
+        alert("You cannot delete the only non-bonus item within this category!");
+        return;
+      }
       handleFieldsChange(["children"], [ArrayUtil.deleteFromArray(children, idx)]);
     }
   }
@@ -102,7 +117,14 @@ function Category({
                   regex={numRegex}
                   numeric
                   initValue={weight}
-                  handleUpdate={(newVal) => handleFieldsChange(["weight"], [newVal])}
+                  handleUpdate={(newVal) => {
+                    if ((newVal === null || newVal === 0) && isOnlyNonBonus) {
+                      // Must handle case of deleting only non-bonus
+                      alert("You cannot delete the weight of the only non-bonus item in the category!");
+                      return false;
+                    }
+                    handleFieldsChange(["weight"], [newVal]);
+                  }}
                 />
               </div>
               {isLeaf && (
@@ -131,6 +153,11 @@ function Category({
                 </div>
               )}
               <div className="gradeRowButtons">
+                {canBeBonus && (
+                  <button onClick={() => handleFieldsChange(["isBonus"], [!isBonus])} title="Toggle Bonus">
+                    {!!isBonus ? "UB" : "MB"}
+                  </button>
+                )}
                 {!isLeaf && <button onClick={() => setHidden((prev) => !prev)}>{hidden ? "Show" : "Hide"}</button>}
                 {depth < depthColors.length - 1 && (
                   <button
@@ -160,6 +187,15 @@ function Category({
               depth={depth + 1}
               canMoveUp={idx > 0}
               canMoveDown={idx < children.length - 1}
+              canDelete={children.length > 1 || depth > 0}
+              canBeBonus={
+                children.find((child) => !child.isBonus && child.weight !== null && child.weight > 0 && child !== c) !==
+                undefined
+              }
+              isOnlyNonBonus={
+                idx === children.findIndex((c) => !c.isBonus && c.weight !== null && c.weight > 0) &&
+                idx === children.findLastIndex((c) => !c.isBonus && c.weight !== null && c.weight > 0)
+              }
               cbMoveSelf={(dir) => {
                 handleFieldsChange(["children"], [ArrayUtil.swapInArray(children, idx, idx + dir)]);
               }}
@@ -203,7 +239,9 @@ function calculateScore(categoryObj, doCap = true) {
   for (let child of categoryObj.children) {
     const score = calculateScore(child);
     if (score !== "N/A") {
-      totalWeight += child.weight;
+      if (!child.isBonus) {
+        totalWeight += child.weight;
+      }
       totalSum += child.weight * score;
     }
   }
@@ -259,38 +297,52 @@ function deleteCourse(originalTitle) {
 }
 
 function flatten(categoryObj) {
+  // Returns a flattened version of dataObj, i.e., all subcategories
+  // are moved to the same level. Returned as array
   function flattenHelper(dataObj) {
+    // If it has no weight, it doesn't count. Return empty array
     if (dataObj.weight === null || dataObj.weight === 0) return [];
+    // If leaf node, then this just return this object (in an array).
     if (dataObj.children === undefined) return [{ ...dataObj, cappedCategories: [] }];
 
-    let res = [];
+    // Otherwise, it has children. Must loop over children and add each of their
+    // flattened versions into an array.
+
+    let flattenedChildren = [];
     for (const child of dataObj.children) {
-      let newChildren = flattenHelper(child);
-      const totalWeight = newChildren.reduce((total, current) => total + current.weight, 0);
-      newChildren.forEach((c) => {
-        c.weight *= child.weight / totalWeight;
-      });
-      res.push(...newChildren);
+      let flattenedChild = flattenHelper(child);
+      flattenedChildren.push(...flattenedChild);
     }
-    res = res.map((c) => {
-      // Prepend name to each of existing capped categories
-      c.cappedCategories = c.cappedCategories.map((name) => `${dataObj.name}.${name}`);
-      // Add this name if capped
-      if (!!dataObj.capped) {
-        c.cappedCategories = [...c.cappedCategories, dataObj.name];
-      }
-      return c;
+
+    // Now must normalize weights to have sum equal to dataObj's weight
+    const totalWeight = flattenedChildren.reduce((total, current) => {
+      if (!!current.isBonus) return total;
+      return total + current.weight;
+    }, 0);
+    const normalized = flattenedChildren.map((descendant) => {
+      const newWeight = (descendant.weight / totalWeight) * dataObj.weight;
+      return { ...descendant, weight: newWeight };
     });
-    return res;
+
+    const result = normalized;
+
+    // Apply bonus if parent was bonus
+    if (!!dataObj.isBonus) {
+      result.forEach((c) => (c.isBonus = true));
+    }
+
+    // Update capped based on parent and existing cappedCategories array
+    result.forEach((c) => {
+      c.cappedCategories = c.cappedCategories.map((name) => `${dataObj.name}.${name}`);
+      if (!!dataObj.capped) {
+        c.cappedCategories.push(dataObj.name);
+      }
+    });
+
+    return result;
   }
 
-  // First flatten
   const flattened = flattenHelper(categoryObj);
-  if (flattened.length === 0) return { ...categoryObj, children: flattened };
-
-  // Then normalize weights to have sum of 100
-  const totalWeight = flattened.reduce((total, current) => total + current.weight, 0);
-  flattened.forEach((item) => (item.weight *= 100 / totalWeight));
   return { ...categoryObj, children: flattened };
 }
 
@@ -300,9 +352,18 @@ function GradeRequirement({ desiredScore, gradeData }) {
   const unknowns = variables.filter((item) => item.score === null);
 
   const [totalSoFar, totalKnownWeight] = knowns.reduce(
-    ([total, totalWeight], item) => [total + (item.score * item.weight) / 100, totalWeight + item.weight],
+    ([total, totalWeight], item) => [
+      total + (item.score * item.weight) / 100,
+      !item.isBonus ? totalWeight + item.weight : totalWeight,
+    ],
     [0, 0]
   );
+
+  // TODO: Generate some kind of data structure that contains constraints (caps)
+  //       and use it to compute the results below as well as for graphing later
+  //       Should have some kind of evaluate function that plugs missing values in
+
+  const remainingWeight = unknowns.reduce((total, current) => total + current.weight, 0);
 
   return (
     <>
@@ -315,7 +376,8 @@ function GradeRequirement({ desiredScore, gradeData }) {
           <ul>
             {knowns.map((known, idx) => (
               <li key={known + " " + idx}>
-                {round((known.score * known.weight) / 100)} / {round(known.weight)} points from {known.name}
+                {round((known.score * known.weight) / 100)} / {!known.isBonus ? round(known.weight) : 0} points from{" "}
+                {known.name}
               </li>
             ))}
           </ul>
@@ -325,14 +387,22 @@ function GradeRequirement({ desiredScore, gradeData }) {
         {unknowns.length === 1 ? (
           <p>
             To get a {desiredScore}% in this course, you will need to get at least a{" "}
-            {round(((desiredScore - totalSoFar) / (100 - totalKnownWeight)) * 100)}% on "{unknowns[0].name}".
+            {round(((desiredScore - totalSoFar) / unknowns[0].weight) * 100)}% on "{unknowns[0].name}".
           </p>
         ) : unknowns.length > 1 ? (
-          <p>
-            Hence, to get a {desiredScore}% in this course, you will need to get at least{" "}
-            {round(desiredScore - round(totalSoFar), 2)} of the remaining {100 - round(totalKnownWeight)} points, which
-            is an average score of {round(((desiredScore - totalSoFar) / (100 - totalKnownWeight)) * 100)}%.
-          </p>
+          totalKnownWeight === 100 ? (
+            <p>
+              Hence, to get a {desiredScore}% in this course, you will need to get at least{" "}
+              {round(desiredScore - round(totalSoFar), 2)} of the remaining {round(remainingWeight)} bonus points, which
+              is an average score of {round(((desiredScore - totalSoFar) / remainingWeight) * 100)}%.
+            </p>
+          ) : (
+            <p>
+              Hence, to get a {desiredScore}% in this course, you will need to get at least{" "}
+              {round(desiredScore - round(totalSoFar), 2)} of the remaining {round(remainingWeight)} points, which is an
+              average score of {round(((desiredScore - totalSoFar) / remainingWeight) * 100)}%.
+            </p>
+          )
         ) : (
           ""
         )}
