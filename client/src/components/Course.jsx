@@ -64,6 +64,8 @@ function Category({
   const isLeaf = info.children === undefined;
   const isRoot = depth < 0;
   const shouldShowChildren = isRoot || (!isLeaf && !hidden);
+  const canHaveChildren = depth < depthColors.length - 1;
+  const canDeleteSelf = depth > 0 || canDelete;
 
   const scoreTextIgnoreCap = isLeaf ? score ?? "" : calculateScore(info, false);
   const scoreText =
@@ -153,26 +155,60 @@ function Category({
                 </div>
               )}
               <div className="gradeRowButtons">
-                {canBeBonus && (
-                  <button onClick={() => handleFieldsChange(["isBonus"], [!isBonus])} title="Toggle Bonus">
-                    {!!isBonus ? "UB" : "MB"}
-                  </button>
-                )}
-                {!isLeaf && <button onClick={() => setHidden((prev) => !prev)}>{hidden ? "Show" : "Hide"}</button>}
-                {depth < depthColors.length - 1 && (
-                  <button
-                    onClick={() => {
-                      const newChildren = children === undefined ? [newCategory()] : [...children, newCategory()];
-                      handleFieldsChange(["score", "children"], [undefined, newChildren]);
-                    }}
-                  >
-                    Add Sub
-                  </button>
-                )}
-                {canMoveUp && <button onClick={() => cbMoveSelf(-1)}>Up</button>}
-                {canMoveDown && <button onClick={() => cbMoveSelf(1)}>Down</button>}
-                {(depth > 0 || canDelete) && <button onClick={() => cbDeleteSelf()}>X</button>}
-                <button onClick={cbAddAfterSelf}>+</button>
+                <button
+                  title="Toggle Bonus"
+                  disabled={!canBeBonus}
+                  onClick={() => handleFieldsChange(["isBonus"], [!isBonus])}
+                >
+                  {!!isBonus ? "UB" : "MB"}
+                </button>
+
+                <button title="Toggle Children Visibility" disabled={isLeaf} onClick={() => setHidden((prev) => !prev)}>
+                  {hidden ? "Show" : "Hide"}
+                </button>
+
+                <button title="Move Up" disabled={!canMoveUp} onClick={() => cbMoveSelf(-1)}>
+                  U
+                </button>
+                <button title="Move Down" disabled={!canMoveDown} onClick={() => cbMoveSelf(1)}>
+                  D
+                </button>
+                <button title="Delete" disabled={!canDeleteSelf} onClick={() => cbDeleteSelf()}>
+                  X
+                </button>
+                <button title="Add Category" onClick={cbAddAfterSelf}>
+                  +
+                </button>
+                <button
+                  title="Add Child"
+                  disabled={!canHaveChildren}
+                  onClick={() => {
+                    const newChildren = children === undefined ? [newCategory()] : [...children, newCategory()];
+                    handleFieldsChange(["score", "children"], [undefined, newChildren]);
+                  }}
+                >
+                  +C
+                </button>
+                <button
+                  title="Add Children"
+                  disabled={!canHaveChildren}
+                  onClick={() => {
+                    let count = prompt("How many children would you like to add?")?.trim();
+                    if (!count || isNaN(count)) return;
+                    count = Math.floor(parseFloat(count));
+                    if (count <= 0) return;
+                    let name = prompt("What should their name be? (Will be named by 'name #')")?.trim();
+                    if (!name) return;
+                    const newCategories = [...Array(count).keys()].map((i) => ({
+                      ...newCategory(),
+                      name: `${name} ${i + 1}`,
+                    }));
+                    const newChildren = children === undefined ? newCategories : [...children, ...newCategories];
+                    handleFieldsChange(["score", "children"], [undefined, newChildren]);
+                  }}
+                >
+                  ++C
+                </button>
               </div>
             </div>
           </div>
@@ -222,7 +258,7 @@ function newCategory() {
   const id = newID();
   return {
     name: "",
-    weight: null,
+    weight: 1,
     score: null,
     id: id,
   };
