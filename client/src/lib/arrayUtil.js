@@ -22,3 +22,7 @@ export function swapInArray(array, idx1, idx2) {
   arrayCopy[idx2] = array[idx1];
   return arrayCopy;
 }
+
+export function countInArray(array, predicate) {
+  return array.reduce((total, current) => (predicate(current) ? total + 1 : total), 0);
+}

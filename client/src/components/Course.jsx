@@ -8,7 +8,7 @@ const numRegex = /^([0-9]+((\.)|(\.[0-9]{0,3}))?)?$/;
 const alphaNumRegex = /^([0-9a-zA-z ]){0,20}$/;
 const depthColors = ["#777", "#AAA", "#DDD", "#FFF"];
 
-function SmartInput({ regex, numeric, initValue = "", handleUpdate, className = "" }) {
+function SmartInput({ regex, numeric, initValue = "", handleUpdate, className = "", ...rest }) {
   const [value, setValue] = useState(initValue);
 
   function onUpdate(e) {
@@ -38,6 +38,7 @@ function SmartInput({ regex, numeric, initValue = "", handleUpdate, className = 
         e.target.value = e.target.value.trim();
         onUpdate(e);
       }}
+      {...rest}
     />
   );
 }
@@ -47,6 +48,7 @@ function Category({
   depth,
   canDelete,
   canBeBonus,
+  weightFixed,
   isOnlyNonBonus,
   canMoveUp,
   canMoveDown,
@@ -58,7 +60,16 @@ function Category({
   const backColor = depth < depthColors.length ? depthColors[depth] : "#00FF00";
   const backColorStyle = { backgroundColor: backColor };
 
-  const { name, weight, score, children, capped = false, isBonus = false } = info;
+  const {
+    name,
+    weight,
+    score,
+    children,
+    capped = false,
+    isBonus = false,
+    childrenWeightFixed = false,
+    dropCount = 0,
+  } = info;
   const [hidden, setHidden] = useState(false);
 
   const isLeaf = info.children === undefined;
@@ -77,7 +88,7 @@ function Category({
 
   function deleteChild(idx) {
     if (children.length === 1) {
-      handleFieldsChange(["score", "children"], [null, undefined]);
+      handleFieldsChange(["score", "children", "dropCount"], [null, undefined, undefined]);
     } else {
       // Must handle case of deleting only non-bonus
       const nonBonus1 = children.findIndex((child) => !!child.isBonus === false);
@@ -98,6 +109,17 @@ function Category({
     cbUpdateParent(infoCopy);
   }
 
+  function handleToggleFixChildrenWeights() {
+    if (!childrenWeightFixed) {
+      handleFieldsChange(
+        ["children", "childrenWeightFixed"],
+        [children.map((c) => ({ ...newCategory(c), weight: 1 })), true]
+      );
+    } else {
+      handleFieldsChange(["childrenWeightFixed", "dropCount"], [false, undefined]);
+    }
+  }
+
   return (
     <>
       {!isRoot && (
@@ -116,6 +138,7 @@ function Category({
                 Weight:{" "}
                 <SmartInput
                   className="weight"
+                  disabled={weightFixed}
                   regex={numRegex}
                   numeric
                   initValue={weight}
@@ -161,6 +184,31 @@ function Category({
                   onClick={() => handleFieldsChange(["isBonus"], [!isBonus])}
                 >
                   {!!isBonus ? "UB" : "MB"}
+                </button>
+
+                <button
+                  title="Toggle Fixed Children Weights"
+                  disabled={isLeaf}
+                  onClick={handleToggleFixChildrenWeights}
+                >
+                  FW
+                </button>
+
+                <button
+                  title="Choose How Many to Drop (must be equally weighted)"
+                  disabled={isLeaf || !childrenWeightFixed}
+                  onClick={() => {
+                    let count = prompt("How many should be dropped?")?.trim();
+                    if (count && !isNaN(count)) {
+                      count = Math.ceil(parseFloat(count));
+                      if (count <= 0) count = undefined;
+                    } else {
+                      count = undefined;
+                    }
+                    handleFieldsChange(["dropCount"], [count]);
+                  }}
+                >
+                  Drop {childrenWeightFixed && dropCount ? `: ${dropCount}` : ""}
                 </button>
 
                 <button title="Toggle Children Visibility" disabled={isLeaf} onClick={() => setHidden((prev) => !prev)}>
@@ -221,6 +269,7 @@ function Category({
               key={c.id}
               info={c}
               depth={depth + 1}
+              weightFixed={childrenWeightFixed}
               canMoveUp={idx > 0}
               canMoveDown={idx < children.length - 1}
               canDelete={children.length > 1 || depth > 0}
@@ -254,12 +303,16 @@ let lastID = 1;
 function newID() {
   return lastID++;
 }
-function newCategory() {
-  const id = newID();
-  return {
+function newCategory(
+  initial = {
     name: "",
     weight: 1,
     score: null,
+  }
+) {
+  const id = newID();
+  return {
+    ...initial,
     id: id,
   };
 }
