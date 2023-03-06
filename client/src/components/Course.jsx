@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import * as ArrayUtil from "../lib/arrayUtil";
 import NetworkAPI from "../lib/networkAPI";
+import StorageAPI from "../lib/storageAPI";
 import AuthenticatedPage from "./AuthenticatedPage";
 
 const numRegex = /^([0-9]+((\.)|(\.[0-9]{0,3}))?)?$/;
@@ -365,26 +366,6 @@ function round(number, decimals = 2) {
   return Math.round(number * 10 ** decimals) / 10 ** decimals;
 }
 
-function saveDataToDatabase(originalTitle, data) {
-  NetworkAPI.put(`/api/courses/${originalTitle}`, data)
-    .then((_) => {
-      window.location.href = `/courses/${data.title}`;
-    })
-    .catch(({ status, error }) => {
-      alert("Error Occurred: " + status + " " + error);
-    });
-}
-
-function deleteCourse(originalTitle) {
-  NetworkAPI.delete(`/api/courses/${originalTitle}`)
-    .then((_) => {
-      window.location.replace(`/courses`);
-    })
-    .catch(({ status, error }) => {
-      alert("Error Occurred: " + status + " " + error);
-    });
-}
-
 function flatten(categoryObj) {
   // Returns a flattened version of dataObj, i.e., all subcategories
   // are moved to the same level. Returned as array
@@ -500,7 +481,7 @@ function GradeRequirement({ desiredScore, gradeData }) {
   );
 }
 
-export default function Course() {
+export default function Course({ loggedIn }) {
   const { title } = useParams();
 
   const [gradeData, setGradeData] = useState({});
@@ -509,23 +490,35 @@ export default function Course() {
 
   const [loaded, setLoaded] = useState(false);
 
+  function saveCourse(originalTitle, data) {
+    StorageAPI.updateCourse(originalTitle, data, loggedIn)
+      .then(() => (window.location.href = `/courses/${data.title}`))
+      .catch((err) => alert(err.message));
+  }
+
+  function deleteCourse(title) {
+    StorageAPI.deleteCourse(title, loggedIn)
+      .then(() => window.location.replace(`/courses`))
+      .catch((err) => alert(err.message));
+  }
+
   useEffect(() => {
     function getCourse() {
-      NetworkAPI.get(`/api/courses/${title}`)
-        .then(({ data: course }) => {
+      StorageAPI.getCourse(title, loggedIn)
+        .then((course) => {
           setCurrTitle(course.title);
           setGradeData(addIDs(course.root));
           setDesiredScore(course.desiredScore);
           setLoaded(true);
         })
-        .catch((error) => {
+        .catch((err) => {
           // Invalid course name, go back to list
-          alert("Course does not exist!" + error);
+          alert(err.message);
           window.location.replace("/courses");
         });
     }
     getCourse();
-  }, [title]);
+  }, [title, loggedIn]);
 
   if (!loaded) return "";
 
@@ -535,7 +528,7 @@ export default function Course() {
     scoreTextIgnoreCap === "N/A" ? "N/A" : scoreTextIgnoreCap > 100 && gradeData.capped ? 100 : scoreTextIgnoreCap;
 
   return (
-    <AuthenticatedPage>
+    <AuthenticatedPage initiallyLoggedIn={loggedIn}>
       <h1>
         Course Title:{" "}
         <input
@@ -581,7 +574,7 @@ export default function Course() {
         <div className="manageButtons">
           <button
             onClick={() => {
-              saveDataToDatabase(title, {
+              saveCourse(title, {
                 title: currTitle,
                 root: removeIDs(gradeData),
                 desiredScore: desiredScore,

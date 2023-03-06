@@ -4,8 +4,8 @@ import useLoginStatus from "../hooks/useLoginStatus";
 
 import NetworkAPI from "../lib/networkAPI";
 
-export default function AuthenticatedPage({ children }) {
-  let loggedIn = useLoginStatus();
+export default function AuthenticatedPage({ children, initiallyLoggedIn }) {
+  let loggedIn = useLoginStatus(initiallyLoggedIn);
   const [justLoggedIn, setJustLoggedIn] = useState(false);
 
   function handleSubmit(e) {
@@ -30,7 +30,7 @@ export default function AuthenticatedPage({ children }) {
   return (
     <>
       {children}
-      {!loggedIn && !justLoggedIn && (
+      {initiallyLoggedIn && !loggedIn && !justLoggedIn && (
         <div className="darkOverlay">
           <div className="loginPrompt">
             <h2 style={{ textAlign: "center", marginBottom: "0.5em" }}>Please login again.</h2>

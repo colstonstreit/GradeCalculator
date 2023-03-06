@@ -8,13 +8,13 @@ function logout() {
   window.location.href = "/login";
 }
 
-export default function NavBar({ user }) {
+export default function NavBar({ loggedIn }) {
   return (
     <nav>
       <Link to="/">Welcome Page</Link>
-      {user.loggedIn && <Link to="/courses">My Courses</Link>}
-      {!user.loggedIn && <Link to="/login">Login</Link>}
-      {user.loggedIn && <button onClick={logout}>Logout</button>}
+      <Link to="/courses">My Courses</Link>
+      {!loggedIn && <Link to="/login">Login</Link>}
+      {loggedIn && <button onClick={logout}>Logout</button>}
     </nav>
   );
 }

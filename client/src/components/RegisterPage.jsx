@@ -14,12 +14,13 @@ function handleSubmit(e) {
     username: username.value,
     password: password.value,
   })
-    .then((_) => {
-      // Redirect to courses page
-      window.location.href = "/courses";
-    })
-    .catch(({ error }) => {
-      alert("Error: " + error);
+    .then(() => (window.location.href = "/courses"))
+    .catch(({ status, error }) => {
+      if (status >= 500) {
+        alert("There seems to be an error connecting to the server. In the meantime, feel free to work offline!");
+      } else {
+        alert("Error while registering: " + error);
+      }
     });
 }
 

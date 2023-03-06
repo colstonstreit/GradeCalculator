@@ -15,27 +15,19 @@ import Course from "./components/Course";
 import useInitialLoginStatus from "./hooks/useInitialLoginStatus";
 
 export default function App() {
-  const user = useInitialLoginStatus();
+  const loggedIn = useInitialLoginStatus();
 
   return (
     <>
-      <NavBar user={user} />
+      <NavBar loggedIn={loggedIn} />
       <main>
-        {user.loggedIn !== null && (
+        {loggedIn !== null && (
           <Routes>
-            <Route exact path="/" element={<LandingPage user={user} />} />
-            <Route exact path="/login" element={<LoginPage user={user} />} />
-            <Route exact path="/register" element={<RegisterPage user={user} />} />
-            <Route
-              exact
-              path="/courses"
-              element={user.loggedIn ? <CourseList user={user} /> : <Navigate to="/login" />}
-            />
-            <Route
-              exact
-              path="/courses/:title"
-              element={user.loggedIn ? <Course user={user} /> : <Navigate to="/login" />}
-            />
+            <Route exact path="/" element={<LandingPage />} />
+            <Route exact path="/login" element={<LoginPage />} />
+            <Route exact path="/register" element={<RegisterPage />} />
+            <Route exact path="/courses" element={<CourseList loggedIn={loggedIn} />} />
+            <Route exact path="/courses/:title" element={<Course loggedIn={loggedIn} />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         )}

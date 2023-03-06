@@ -10,11 +10,9 @@ function handleSubmit(e) {
     username: username.value,
     password: password.value,
   })
-    .then((_) => {
-      window.location.href = "/courses";
-    })
+    .then(() => (window.location.href = "/courses"))
     .catch(({ error }) => {
-      alert("Error: " + error);
+      alert("There seems to be an error connecting to the server. In the meantime, feel free to work offline!");
     });
 }
 

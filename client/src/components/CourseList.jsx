@@ -1,45 +1,41 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import NetworkAPI from "../lib/networkAPI";
+import StorageAPI from "../lib/storageAPI";
 import AuthenticatedPage from "./AuthenticatedPage";
 
-function addNewCourse() {
-  let title = prompt("What would you like to name your course?");
-  if (!title) return;
-  title = title.trim();
-
-  NetworkAPI.post(`/api/courses`, { title })
-    .then((_) => {
-      // Redirect to new course's page
-      window.location.href = `/courses/${title}`;
-    })
-    .catch(({ status, error }) => {
-      alert("Error Occurred: " + status + " " + error);
-    });
-}
-
-export default function CourseList({ user }) {
+export default function CourseList({ loggedIn }) {
   const [courses, setCourses] = useState([]);
   const [loaded, setLoaded] = useState(false);
 
+  function addNewCourse() {
+    let title = prompt("What would you like to name your course?");
+    if (!title) return;
+    title = title.trim();
+
+    StorageAPI.createCourse(title, loggedIn)
+      .then(() => (window.location.href = `/courses/${title}`))
+      .catch((err) => alert(err.message));
+  }
+
   useEffect(() => {
     function getCourses() {
-      NetworkAPI.get(`/api/courses`)
-        .then(({ data: newCourses }) => {
-          setCourses(newCourses);
+      StorageAPI.getCourses(loggedIn)
+        .then((courses) => {
+          setCourses(courses);
           setLoaded(true);
         })
-        .catch(({ status, error }) => {
-          alert("Error: " + status + " " + error);
+        .catch((err) => {
+          alert(err.message);
         });
     }
     getCourses();
-  }, []);
+  }, [loggedIn]);
 
   if (!loaded) return "";
 
   return (
-    <AuthenticatedPage>
+    <AuthenticatedPage initiallyLoggedIn={loggedIn}>
+      <h1 style={{ textAlign: "center" }}>Your Courses {loggedIn ? "(Online)" : "(Offline)"}</h1>
       <div className="courseListContainer">
         {courses.map((courseName, idx) => (
           <Link key={courseName} to={`/courses/${courseName}`}>
