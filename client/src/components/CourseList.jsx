@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import StorageAPI from "../lib/storageAPI";
 import AuthenticatedPage from "./AuthenticatedPage";
 
@@ -7,13 +7,15 @@ export default function CourseList({ loggedIn }) {
   const [courses, setCourses] = useState([]);
   const [loaded, setLoaded] = useState(false);
 
+  const navigate = useNavigate();
+
   function addNewCourse() {
     let title = prompt("What would you like to name your course?");
     if (!title) return;
     title = title.trim();
 
     StorageAPI.createCourse(title, loggedIn)
-      .then(() => (window.location.href = `/courses/${title}`))
+      .then(() => navigate(`/courses/${title}`))
       .catch((err) => alert(err.message));
   }
 

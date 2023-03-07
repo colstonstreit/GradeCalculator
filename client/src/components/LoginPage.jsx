@@ -1,22 +1,27 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import NetworkAPI from "../lib/networkAPI";
 
-function handleSubmit(e) {
-  e.preventDefault();
-  const { username, password } = e.target;
-  NetworkAPI.post("/api/auth/login", {
-    username: username.value,
-    password: password.value,
-  })
-    .then(() => (window.location.href = "/courses"))
-    .catch(({ error }) => {
-      alert("There seems to be an error connecting to the server. In the meantime, feel free to work offline!");
-    });
-}
-
 export default function LoginPage() {
+  const navigate = useNavigate();
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    const { username, password } = e.target;
+    NetworkAPI.post("/api/auth/login", {
+      username: username.value,
+      password: password.value,
+    })
+      .then(() => {
+        navigate("/courses");
+        navigate(0);
+      })
+      .catch(({ error }) => {
+        alert("There seems to be an error connecting to the server. In the meantime, feel free to work offline!");
+      });
+  }
+
   return (
     <>
       <h1>Login to Grade Calculator Here!</h1>

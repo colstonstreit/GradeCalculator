@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import * as ArrayUtil from "../lib/arrayUtil";
-import NetworkAPI from "../lib/networkAPI";
 import StorageAPI from "../lib/storageAPI";
 import AuthenticatedPage from "./AuthenticatedPage";
 
@@ -489,36 +488,39 @@ export default function Course({ loggedIn }) {
   const [desiredScore, setDesiredScore] = useState(null);
 
   const [loaded, setLoaded] = useState(false);
+  const navigate = useNavigate();
+
+  function getCourse() {
+    StorageAPI.getCourse(title, loggedIn)
+      .then((course) => {
+        setCurrTitle(course.title);
+        setGradeData(course.root);
+        setDesiredScore(course.desiredScore);
+        setLoaded(true);
+      })
+      .catch((err) => {
+        // Invalid course name, go back to list
+        alert(err.message);
+        navigate(`/courses`, { replace: true });
+      });
+  }
 
   function saveCourse(originalTitle, data) {
     StorageAPI.updateCourse(originalTitle, data, loggedIn)
-      .then(() => (window.location.href = `/courses/${data.title}`))
+      .then(() => {
+        alert("Changes saved successfully!");
+        navigate(`/courses/${data.title}`, { replace: true });
+      })
       .catch((err) => alert(err.message));
   }
 
   function deleteCourse(title) {
     StorageAPI.deleteCourse(title, loggedIn)
-      .then(() => window.location.replace(`/courses`))
+      .then(() => navigate(`/courses`, { replace: true }))
       .catch((err) => alert(err.message));
   }
 
-  useEffect(() => {
-    function getCourse() {
-      StorageAPI.getCourse(title, loggedIn)
-        .then((course) => {
-          setCurrTitle(course.title);
-          setGradeData(addIDs(course.root));
-          setDesiredScore(course.desiredScore);
-          setLoaded(true);
-        })
-        .catch((err) => {
-          // Invalid course name, go back to list
-          alert(err.message);
-          window.location.replace("/courses");
-        });
-    }
-    getCourse();
-  }, [title, loggedIn]);
+  useEffect(getCourse, [loggedIn, navigate, title]);
 
   if (!loaded) return "";
 
@@ -554,7 +556,7 @@ export default function Course({ loggedIn }) {
         </span>
       </h2>
       <Category
-        info={gradeData}
+        info={addIDs(gradeData)}
         depth={-1}
         cbUpdateParent={(newData) => {
           setGradeData(newData);

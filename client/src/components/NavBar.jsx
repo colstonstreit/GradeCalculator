@@ -1,14 +1,17 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import NetworkAPI from "../lib/networkAPI";
 
-function logout() {
-  NetworkAPI.post("/api/auth/logout");
-  window.location.href = "/login";
-}
-
 export default function NavBar({ loggedIn }) {
+  const navigate = useNavigate();
+
+  function logout() {
+    NetworkAPI.post("/api/auth/logout");
+    navigate("/login");
+    navigate(0);
+  }
+
   return (
     <nav>
       <Link to="/">Welcome Page</Link>
