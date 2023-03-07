@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import StorageAPI from "../lib/storageAPI";
-import AuthenticatedPage from "./AuthenticatedPage";
 
 export default function CourseList({ loggedIn }) {
   const [courses, setCourses] = useState([]);
@@ -36,7 +35,7 @@ export default function CourseList({ loggedIn }) {
   if (!loaded) return "";
 
   return (
-    <AuthenticatedPage initiallyLoggedIn={loggedIn}>
+    <>
       <h1 style={{ textAlign: "center" }}>Your Courses {loggedIn ? "(Online)" : "(Offline)"}</h1>
       <div className="courseListContainer">
         {courses.map((courseName, idx) => (
@@ -46,6 +45,6 @@ export default function CourseList({ loggedIn }) {
         ))}
         <button onClick={addNewCourse}>Add Course</button>
       </div>
-    </AuthenticatedPage>
+    </>
   );
 }

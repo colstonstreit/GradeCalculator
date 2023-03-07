@@ -4,7 +4,7 @@ import useLoginStatus from "../hooks/useLoginStatus";
 
 import NetworkAPI from "../lib/networkAPI";
 
-export default function AuthenticatedPage({ children, initiallyLoggedIn }) {
+export default function AuthenticatedPage({ children, initiallyLoggedIn, logout = false }) {
   let loggedIn = useLoginStatus(initiallyLoggedIn);
   const [justLoggedIn, setJustLoggedIn] = useState(false);
 
@@ -15,9 +15,7 @@ export default function AuthenticatedPage({ children, initiallyLoggedIn }) {
       username: username.value,
       password: password.value,
     })
-      .then((_) => {
-        setJustLoggedIn(true);
-      })
+      .then(() => setJustLoggedIn(true))
       .catch(({ error }) => {
         alert("Error occurred while attempting to log in: " + error);
       });

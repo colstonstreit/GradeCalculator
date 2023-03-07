@@ -15,16 +15,14 @@ export default function useLoginStatus(initiallyLoggedIn) {
           .then(({ data }) => {
             setLoggedIn(data.loggedIn);
             if (shownError) {
-              alert("Communications with the server appear to be back online! You should be good to save now.");
+              alert("Communications with the server appear to be back online!");
               setShownError(false);
             }
           })
           .catch(() => {
             if (!shownError) {
               setShownError(true);
-              alert(
-                "Unfortunately, communications with the server have been interrupted. If you leave this page, your changes may be lost."
-              );
+              alert("Communications with the server have been interrupted.");
             }
           });
       }
