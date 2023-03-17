@@ -23,7 +23,7 @@ export default function LoginPage() {
   }
 
   return (
-    <>
+    <main>
       <h1>Login to Grade Calculator Here!</h1>
       <form method="POST" action="/api/auth/login" onSubmit={handleSubmit}>
         <div>
@@ -42,6 +42,6 @@ export default function LoginPage() {
       <p>
         Don't have an account yet? Sign up <Link to="/register">here!</Link>
       </p>
-    </>
+    </main>
   );
 }

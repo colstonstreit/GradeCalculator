@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import * as ArrayUtil from "../lib/arrayUtil";
 import StorageAPI from "../lib/storageAPI";
 import AuthenticatedPage from "./AuthenticatedPage";
+import { DeleteIcon, DownIcon, PlusIcon, SettingsIcon, UpIcon } from "./Icons";
 
 const numRegex = /^([0-9]+((\.)|(\.[0-9]{0,3}))?)?$/;
 const alphaNumRegex = /^([0-9a-zA-z ]){0,20}$/;
@@ -43,262 +44,6 @@ function SmartInput({ regex, numeric, initValue = "", handleUpdate, className = 
   );
 }
 
-function Category({
-  info,
-  depth,
-  canDelete,
-  canBeBonus,
-  weightFixed,
-  isOnlyNonBonus,
-  canMoveUp,
-  canMoveDown,
-  cbMoveSelf,
-  cbDeleteSelf,
-  cbAddAfterSelf,
-  cbUpdateParent,
-}) {
-  const backColor = depth < depthColors.length ? depthColors[depth] : "#00FF00";
-  const backColorStyle = { backgroundColor: backColor };
-
-  const {
-    name,
-    weight,
-    score,
-    children,
-    capped = false,
-    isBonus = false,
-    childrenWeightFixed = false,
-    dropCount = 0,
-  } = info;
-  const [hidden, setHidden] = useState(false);
-
-  const isLeaf = info.children === undefined;
-  const isRoot = depth < 0;
-  const shouldShowChildren = isRoot || (!isLeaf && !hidden);
-  const canHaveChildren = depth < depthColors.length - 1;
-  const canDeleteSelf = depth > 0 || canDelete;
-
-  const scoreTextIgnoreCap = isLeaf ? score ?? "" : calculateScore(info, false);
-  const scoreText =
-    typeof scoreTextIgnoreCap === "string"
-      ? scoreTextIgnoreCap
-      : scoreTextIgnoreCap > 100 && capped
-      ? 100
-      : scoreTextIgnoreCap;
-
-  function deleteChild(idx) {
-    if (children.length === 1) {
-      handleFieldsChange(["score", "children", "dropCount"], [null, undefined, undefined]);
-    } else {
-      // Must handle case of deleting only non-bonus
-      const nonBonus1 = children.findIndex((child) => !!child.isBonus === false);
-      const nonBonus2 = children.findLastIndex((child) => !!child.isBonus === false);
-      if (nonBonus1 === nonBonus2 && nonBonus2 === idx) {
-        alert("You cannot delete the only non-bonus item within this category!");
-        return;
-      }
-      handleFieldsChange(["children"], [ArrayUtil.deleteFromArray(children, idx)]);
-    }
-  }
-
-  function handleFieldsChange(fields, newValues) {
-    const infoCopy = { ...info };
-    for (let i = 0; i < fields.length; i++) {
-      infoCopy[fields[i]] = newValues[i];
-    }
-    cbUpdateParent(infoCopy);
-  }
-
-  function handleToggleFixChildrenWeights() {
-    if (!childrenWeightFixed) {
-      handleFieldsChange(
-        ["children", "childrenWeightFixed"],
-        [children.map((c) => ({ ...newCategory(c), weight: 1 })), true]
-      );
-    } else {
-      handleFieldsChange(["childrenWeightFixed", "dropCount"], [false, undefined]);
-    }
-  }
-
-  return (
-    <>
-      {!isRoot && (
-        <>
-          <div className="gradeRow" style={backColorStyle}>
-            <div className="gradeRowContentWrapper inline">
-              <div className="gradeName inline">
-                Name:{" "}
-                <SmartInput
-                  initValue={name}
-                  regex={alphaNumRegex}
-                  handleUpdate={(newVal) => handleFieldsChange(["name"], [newVal])}
-                />
-              </div>
-              <div className="gradeWeight inline">
-                Weight:{" "}
-                <SmartInput
-                  className="weight"
-                  disabled={weightFixed}
-                  regex={numRegex}
-                  numeric
-                  initValue={weight}
-                  handleUpdate={(newVal) => {
-                    if ((newVal === null || newVal === 0) && isOnlyNonBonus) {
-                      // Must handle case of deleting only non-bonus
-                      alert("You cannot delete the weight of the only non-bonus item in the category!");
-                      return false;
-                    }
-                    handleFieldsChange(["weight"], [newVal]);
-                  }}
-                />
-              </div>
-              {isLeaf && (
-                <div className="gradeScore inline">
-                  Score:{" "}
-                  <SmartInput
-                    className="score"
-                    regex={numRegex}
-                    numeric
-                    initValue={score}
-                    handleUpdate={(newVal) => handleFieldsChange(["score"], [newVal])}
-                  />
-                </div>
-              )}
-              {!isLeaf && (
-                <div className="gradeScoreAuto">
-                  <span onClick={() => handleFieldsChange(["capped"], [!capped])} style={{ cursor: "pointer" }}>
-                    Score{" "}
-                    {typeof scoreTextIgnoreCap === "number" && scoreTextIgnoreCap > 100
-                      ? capped
-                        ? "(Capped):"
-                        : "(Uncapped):"
-                      : ":"}
-                  </span>
-                  <input className="score transparent" disabled type="text" value={scoreText} />
-                </div>
-              )}
-              <div className="gradeRowButtons">
-                <button
-                  title="Toggle Bonus"
-                  disabled={!canBeBonus}
-                  onClick={() => handleFieldsChange(["isBonus"], [!isBonus])}
-                >
-                  {!!isBonus ? "UB" : "MB"}
-                </button>
-
-                <button
-                  title="Toggle Fixed Children Weights"
-                  disabled={isLeaf}
-                  onClick={handleToggleFixChildrenWeights}
-                >
-                  FW
-                </button>
-
-                <button
-                  title="Choose How Many to Drop (must be equally weighted)"
-                  disabled={isLeaf || !childrenWeightFixed}
-                  onClick={() => {
-                    let count = prompt("How many should be dropped?")?.trim();
-                    if (count && !isNaN(count)) {
-                      count = Math.ceil(parseFloat(count));
-                      if (count <= 0) count = undefined;
-                    } else {
-                      count = undefined;
-                    }
-                    handleFieldsChange(["dropCount"], [count]);
-                  }}
-                >
-                  Drop {childrenWeightFixed && dropCount ? `: ${dropCount}` : ""}
-                </button>
-
-                <button title="Toggle Children Visibility" disabled={isLeaf} onClick={() => setHidden((prev) => !prev)}>
-                  {hidden ? "Show" : "Hide"}
-                </button>
-
-                <button title="Move Up" disabled={!canMoveUp} onClick={() => cbMoveSelf(-1)}>
-                  U
-                </button>
-                <button title="Move Down" disabled={!canMoveDown} onClick={() => cbMoveSelf(1)}>
-                  D
-                </button>
-                <button title="Delete" disabled={!canDeleteSelf} onClick={() => cbDeleteSelf()}>
-                  X
-                </button>
-                <button title="Add Category" onClick={cbAddAfterSelf}>
-                  +
-                </button>
-                <button
-                  title="Add Child"
-                  disabled={!canHaveChildren}
-                  onClick={() => {
-                    const newChildren = children === undefined ? [newCategory()] : [...children, newCategory()];
-                    handleFieldsChange(["score", "children"], [undefined, newChildren]);
-                  }}
-                >
-                  +C
-                </button>
-                <button
-                  title="Add Children"
-                  disabled={!canHaveChildren}
-                  onClick={() => {
-                    let count = prompt("How many children would you like to add?")?.trim();
-                    if (!count || isNaN(count)) return;
-                    count = Math.floor(parseFloat(count));
-                    if (count <= 0) return;
-                    let name = prompt("What should their name be? (Will be named by 'name #')")?.trim();
-                    if (!name) return;
-                    const newCategories = [...Array(count).keys()].map((i) => ({
-                      ...newCategory(),
-                      name: `${name} ${i + 1}`,
-                    }));
-                    const newChildren = children === undefined ? newCategories : [...children, ...newCategories];
-                    handleFieldsChange(["score", "children"], [undefined, newChildren]);
-                  }}
-                >
-                  ++C
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-      {shouldShowChildren && (
-        <div className="gradeChildren">
-          {children.map((c, idx) => (
-            <Category
-              key={c.id}
-              info={c}
-              depth={depth + 1}
-              weightFixed={childrenWeightFixed}
-              canMoveUp={idx > 0}
-              canMoveDown={idx < children.length - 1}
-              canDelete={children.length > 1 || depth > 0}
-              canBeBonus={
-                children.find((child) => !child.isBonus && child.weight !== null && child.weight > 0 && child !== c) !==
-                undefined
-              }
-              isOnlyNonBonus={
-                idx === children.findIndex((c) => !c.isBonus && c.weight !== null && c.weight > 0) &&
-                idx === children.findLastIndex((c) => !c.isBonus && c.weight !== null && c.weight > 0)
-              }
-              cbMoveSelf={(dir) => {
-                handleFieldsChange(["children"], [ArrayUtil.swapInArray(children, idx, idx + dir)]);
-              }}
-              cbDeleteSelf={() => deleteChild(idx)}
-              cbAddAfterSelf={() =>
-                handleFieldsChange(["children"], [ArrayUtil.addToArray(children, idx, newCategory())])
-              }
-              cbUpdateParent={(newData) =>
-                handleFieldsChange(["children"], [ArrayUtil.replaceInArray(children, idx, newData)])
-              }
-            />
-          ))}
-        </div>
-      )}
-    </>
-  );
-}
-
 let lastID = 1;
 function newID() {
   return lastID++;
@@ -318,8 +63,11 @@ function newCategory(
 }
 
 function calculateScore(categoryObj, doCap = true) {
+  const { pointsNum = categoryObj.score ?? null, pointsDenom = 100 } = categoryObj;
+  const score = pointsNum !== null ? (pointsNum / pointsDenom) * 100 : "N/A";
+
   // If leaf node, just return score
-  if (categoryObj.children === undefined) return categoryObj.score ?? "N/A";
+  if (categoryObj.children === undefined) return score ?? "N/A";
 
   // Otherwise, must compute score from children
   let totalWeight = 0;
@@ -480,6 +228,284 @@ function GradeRequirement({ desiredScore, gradeData }) {
   );
 }
 
+function Category({
+  info,
+  depth,
+  canDelete,
+  canBeBonus,
+  weightFixed,
+  isOnlyNonBonus,
+  canMoveUp,
+  canMoveDown,
+  cbMoveSelf,
+  cbDeleteSelf,
+  cbAddAfterSelf,
+  cbUpdateParent,
+}) {
+  const backColor = depth < depthColors.length ? depthColors[depth] : "#00FF00";
+  const backColorStyle = { backgroundColor: backColor };
+
+  const {
+    name,
+    weight,
+    pointsNum = info.score ?? null,
+    pointsDenom = 100,
+    children,
+    capped = false,
+    isBonus = false,
+    childrenWeightFixed = false,
+    dropCount = 0,
+  } = info;
+  const [hidden, setHidden] = useState(false);
+
+  const isLeaf = info.children === undefined;
+  const isRoot = depth < 0;
+  const shouldShowChildren = isRoot || (!isLeaf && !hidden);
+  const canHaveChildren = depth < depthColors.length - 1;
+  const canDeleteSelf = depth > 0 || canDelete;
+
+  let scoreIgnoreCap = "N/A";
+  if (isLeaf) {
+    scoreIgnoreCap = pointsNum !== null ? round((pointsNum / pointsDenom) * 100) : "N/A";
+  } else {
+    scoreIgnoreCap = calculateScore(info, false);
+  }
+
+  let scoreText = "";
+  if (isLeaf) {
+    scoreText = typeof scoreIgnoreCap === "string" ? "N/A" : `${scoreIgnoreCap}%`;
+  } else if (typeof scoreIgnoreCap === "string") {
+    scoreText = scoreIgnoreCap;
+  } else if (scoreIgnoreCap > 100) {
+    scoreText = capped ? "100% (C)" : `${scoreIgnoreCap}% (U)`;
+  } else {
+    scoreText = `${scoreIgnoreCap}%`;
+  }
+
+  let pointsText = pointsNum;
+  if (!isLeaf) {
+    const multiplier = parseFloat(scoreText);
+    pointsText = multiplier ? round((multiplier * weight) / 100) : "?";
+  }
+
+  function deleteChild(idx) {
+    if (children.length === 1) {
+      handleFieldsChange(["score", "children", "dropCount"], [null, undefined, undefined]);
+    } else {
+      // Must handle case of deleting only non-bonus
+      const nonBonus1 = children.findIndex((child) => !!child.isBonus === false);
+      const nonBonus2 = children.findLastIndex((child) => !!child.isBonus === false);
+      if (nonBonus1 === nonBonus2 && nonBonus2 === idx) {
+        alert("You cannot delete the only non-bonus item within this category!");
+        return;
+      }
+      handleFieldsChange(["children"], [ArrayUtil.deleteFromArray(children, idx)]);
+    }
+  }
+
+  function handleFieldsChange(fields, newValues) {
+    const infoCopy = { ...info };
+    for (let i = 0; i < fields.length; i++) {
+      infoCopy[fields[i]] = newValues[i];
+    }
+    cbUpdateParent(infoCopy);
+  }
+
+  function handleToggleFixChildrenWeights() {
+    if (!childrenWeightFixed) {
+      handleFieldsChange(
+        ["children", "childrenWeightFixed"],
+        [children.map((c) => ({ ...newCategory(c), weight: 1 })), true]
+      );
+    } else {
+      handleFieldsChange(["childrenWeightFixed", "dropCount"], [false, undefined]);
+    }
+  }
+
+  return (
+    <>
+      {!isRoot && (
+        <tr style={backColorStyle}>
+          <td className="gradeName">
+            <SmartInput
+              initValue={name}
+              regex={alphaNumRegex}
+              handleUpdate={(newVal) => handleFieldsChange(["name"], [newVal])}
+            />
+          </td>
+          <td className="gradeWeight">
+            <SmartInput
+              className="weight"
+              disabled={weightFixed}
+              regex={numRegex}
+              numeric
+              initValue={weight}
+              handleUpdate={(newVal) => {
+                if ((newVal === null || newVal === 0) && isOnlyNonBonus) {
+                  // Must handle case of deleting only non-bonus
+                  alert("You cannot delete the weight of the only non-bonus item in the category!");
+                  return false;
+                }
+                handleFieldsChange(["weight"], [newVal]);
+              }}
+            />
+          </td>
+          <td className="gradePoints">
+            {isLeaf ? (
+              <>
+                <SmartInput
+                  className="score"
+                  regex={numRegex}
+                  numeric
+                  initValue={pointsNum}
+                  handleUpdate={(newVal) => handleFieldsChange(["pointsNum"], [newVal])}
+                />
+                /
+                <SmartInput
+                  className="score"
+                  regex={numRegex}
+                  numeric
+                  initValue={pointsDenom}
+                  placeholder={100}
+                  handleUpdate={(newVal) => {
+                    handleFieldsChange(["pointsDenom"], [newVal <= 0 ? 100 : newVal]);
+                  }}
+                />
+              </>
+            ) : (
+              `${pointsText} / ${weight}`
+            )}
+          </td>
+          <td className="gradeScore">
+            {isLeaf ? (
+              scoreText
+            ) : (
+              <div onClick={() => handleFieldsChange(["capped"], [!capped])} style={{ cursor: "pointer" }}>
+                {scoreText}
+              </div>
+            )}
+          </td>
+          <td className="gradeRowButtons">
+            <button
+              title="Toggle Bonus"
+              disabled={!canBeBonus}
+              onClick={() => handleFieldsChange(["isBonus"], [!isBonus])}
+            >
+              {!!isBonus ? "UB" : "MB"}
+            </button>
+
+            <button title="Toggle Fixed Children Weights" disabled={isLeaf} onClick={handleToggleFixChildrenWeights}>
+              FW
+            </button>
+
+            <button
+              title="Choose How Many to Drop (must be equally weighted)"
+              disabled={isLeaf || !childrenWeightFixed}
+              onClick={() => {
+                let count = prompt("How many should be dropped?")?.trim();
+                if (count && !isNaN(count)) {
+                  count = Math.ceil(parseFloat(count));
+                  if (count <= 0) count = undefined;
+                } else {
+                  count = undefined;
+                }
+                handleFieldsChange(["dropCount"], [count]);
+              }}
+            >
+              Drop {childrenWeightFixed && dropCount ? `: ${dropCount}` : ""}
+            </button>
+
+            <button title="Toggle Children Visibility" disabled={isLeaf} onClick={() => setHidden((prev) => !prev)}>
+              {hidden ? "Show" : "Hide"}
+            </button>
+
+            <button
+              title="Add Child"
+              disabled={!canHaveChildren}
+              onClick={() => {
+                const newChildren = children === undefined ? [newCategory()] : [...children, newCategory()];
+                handleFieldsChange(["score", "children"], [undefined, newChildren]);
+              }}
+            >
+              +C
+            </button>
+            <button
+              title="Add Children"
+              disabled={!canHaveChildren}
+              onClick={() => {
+                let count = prompt("How many children would you like to add?")?.trim();
+                if (!count || isNaN(count)) return;
+                count = Math.floor(parseFloat(count));
+                if (count <= 0) return;
+                let name = prompt("What should their name be? (Will be named by 'name #')")?.trim();
+                if (!name) return;
+                const newCategories = [...Array(count).keys()].map((i) => ({
+                  ...newCategory(),
+                  name: `${name} ${i + 1}`,
+                }));
+                const newChildren = children === undefined ? newCategories : [...children, ...newCategories];
+                handleFieldsChange(["score", "children"], [undefined, newChildren]);
+              }}
+            >
+              ++C
+            </button>
+            <div className="upDownButtons">
+              <button className="iconButton" title="Move Up" disabled={!canMoveUp} onClick={() => cbMoveSelf(-1)}>
+                <UpIcon />
+              </button>
+              <button className="iconButton" title="Move Down" disabled={!canMoveDown} onClick={() => cbMoveSelf(1)}>
+                <DownIcon />
+              </button>
+            </div>
+            <button className="iconButton" title="Add Category" onClick={cbAddAfterSelf}>
+              <PlusIcon />
+            </button>
+            <button className="iconButton" title="Delete" disabled={!canDeleteSelf} onClick={() => cbDeleteSelf()}>
+              <DeleteIcon />
+            </button>
+            <button className="iconButton" title="Open Settings" onClick={() => alert("hi")}>
+              <SettingsIcon />
+            </button>
+          </td>
+        </tr>
+      )}
+      {shouldShowChildren && (
+        <>
+          {children.map((c, idx) => (
+            <Category
+              key={c.id}
+              info={c}
+              depth={depth + 1}
+              weightFixed={childrenWeightFixed}
+              canMoveUp={idx > 0}
+              canMoveDown={idx < children.length - 1}
+              canDelete={children.length > 1 || depth > 0}
+              canBeBonus={
+                children.find((child) => !child.isBonus && child.weight !== null && child.weight > 0 && child !== c) !==
+                undefined
+              }
+              isOnlyNonBonus={
+                idx === children.findIndex((c) => !c.isBonus && c.weight !== null && c.weight > 0) &&
+                idx === children.findLastIndex((c) => !c.isBonus && c.weight !== null && c.weight > 0)
+              }
+              cbMoveSelf={(dir) => {
+                handleFieldsChange(["children"], [ArrayUtil.swapInArray(children, idx, idx + dir)]);
+              }}
+              cbDeleteSelf={() => deleteChild(idx)}
+              cbAddAfterSelf={() =>
+                handleFieldsChange(["children"], [ArrayUtil.addToArray(children, idx, newCategory())])
+              }
+              cbUpdateParent={(newData) =>
+                handleFieldsChange(["children"], [ArrayUtil.replaceInArray(children, idx, newData)])
+              }
+            />
+          ))}
+        </>
+      )}
+    </>
+  );
+}
+
 export default function Course({ loggedIn }) {
   const { title } = useParams();
 
@@ -531,37 +557,53 @@ export default function Course({ loggedIn }) {
 
   return (
     <AuthenticatedPage initiallyLoggedIn={loggedIn}>
-      <h1>
-        Course Title:{" "}
-        <input
-          className="courseTitle"
-          type="text"
-          value={currTitle}
-          onChange={(e) => setCurrTitle(e.target.value)}
-          onBlur={(e) => setCurrTitle(e.target.value.trim())}
-        />
-      </h1>
-      <h2
-        className="courseScore"
-        onClick={() => setGradeData((data) => ({ ...data, capped: !data.capped }))}
-        style={{ cursor: "pointer", display: "inline-block" }}
-      >
-        {`Score: ${scoreText}`}{" "}
-        <span>
-          {typeof scoreTextIgnoreCap === "number" && scoreTextIgnoreCap > 100
-            ? gradeData.capped
-              ? "(Capped)"
-              : "(Uncapped)"
-            : ""}
-        </span>
-      </h2>
-      <Category
-        info={addIDs(gradeData)}
-        depth={-1}
-        cbUpdateParent={(newData) => {
-          setGradeData(newData);
-        }}
-      />
+      <div className="courseContainer">
+        <h1>
+          Course Title:{" "}
+          <input
+            className="courseTitle"
+            type="text"
+            value={currTitle}
+            onChange={(e) => setCurrTitle(e.target.value)}
+            onBlur={(e) => setCurrTitle(e.target.value.trim())}
+          />
+        </h1>
+        <h2
+          className="courseScore"
+          onClick={() => setGradeData((data) => ({ ...data, capped: !data.capped }))}
+          style={{ cursor: "pointer", display: "inline-block" }}
+        >
+          {`Score: ${scoreText}`}{" "}
+          <span>
+            {typeof scoreTextIgnoreCap === "number" && scoreTextIgnoreCap > 100
+              ? gradeData.capped
+                ? "(Capped)"
+                : "(Uncapped)"
+              : ""}
+          </span>
+        </h2>
+
+        <table className="courseTable">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Weight</th>
+              <th>Points</th>
+              <th>Score</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <Category
+              info={addIDs(gradeData)}
+              depth={-1}
+              cbUpdateParent={(newData) => {
+                setGradeData(newData);
+              }}
+            />
+          </tbody>
+        </table>
+      </div>
       <div className="scoreButtonContainer">
         <div className="desiredScore">
           Desired Score:{" "}

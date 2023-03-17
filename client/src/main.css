@@ -63,7 +63,7 @@ nav button:hover {
 }
 
 main {
-  max-width: 1300px;
+  max-width: 1000px;
   margin-block: 1rem;
   margin-inline: auto;
 }
@@ -99,6 +99,52 @@ main {
 
 .courseListContainer > *:hover {
   top: -1rem;
+}
+
+.courseTable {
+  background-color: black;
+}
+
+.courseTable td,
+.courseTable th {
+  padding: 0.3rem;
+  text-align: center;
+}
+
+.courseTable th {
+  background-color: #222;
+  color: white;
+  font-weight: bold;
+}
+
+.iconContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: inherit;
+}
+
+.iconContainer svg {
+  height: 1em;
+  aspect-ratio: 1 / 1;
+  color: inherit;
+}
+
+.iconButton {
+  width: fit-content;
+  height: fit-content;
+  padding: 0;
+  margin: 0;
+  background-color: transparent;
+  border: none;
+  font-size: inherit;
+}
+
+.upDownButtons {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 }
 
 .darkOverlay {
@@ -146,35 +192,22 @@ div.inline {
   display: inline-block;
 }
 
-div.gradeRowContentWrapper {
-  padding-block: 0.75rem;
-  padding-left: 0.5rem;
-  border: 1px solid black;
+td.gradeRowButtons {
   display: flex;
-  gap: 0.5rem;
-  font-weight: bold;
-}
-
-div.gradeRowButtons {
-  display: flex;
-  gap: 0.5rem;
-  margin-left: auto;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
   width: fit-content;
   padding-right: 0.5rem;
 }
 
-div.gradeRowButtons button {
-  padding-inline: 1rem;
-}
-
 input[type="text"] {
-  width: 20ch;
+  width: 15ch;
   text-align: center;
   border-width: 0px;
   color: black;
   font-size: 1rem;
   font-family: inherit;
-  margin-left: 0.25rem;
 }
 
 input[type="text"].transparent {
@@ -182,11 +215,11 @@ input[type="text"].transparent {
 }
 
 input[type="text"].weight {
-  width: 10ch;
+  width: 4ch;
 }
 
 input[type="text"].score {
-  width: 5ch;
+  width: 4ch;
 }
 
 input[type="text"]:disabled {
