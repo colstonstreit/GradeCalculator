@@ -64,8 +64,8 @@ nav button:hover {
 
 main {
   max-width: 1000px;
-  margin-block: 1rem;
   margin-inline: auto;
+  padding: 1rem;
 }
 
 .courseListContainer {
@@ -103,11 +103,13 @@ main {
 
 .courseTable {
   background-color: black;
+  width: 100%;
+  font-size: 0.9em;
 }
 
 .courseTable td,
 .courseTable th {
-  padding: 0.3rem;
+  padding: 0.5em 0.1em;
   text-align: center;
 }
 
@@ -156,6 +158,21 @@ main {
   background-color: rgba(0, 0, 0, 0.6);
 }
 
+.darkOverlay .settingsMenu {
+  background-color: white;
+  padding: 1rem;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+}
+
+.darkOverlay .settingsMenu button {
+  width: 100%;
+  border: 1px solid black;
+  margin: 0;
+  padding: 0.5rem;
+}
+
 .darkOverlay .loginPrompt {
   background-color: white;
   padding: 1rem;
@@ -192,17 +209,21 @@ div.inline {
   display: inline-block;
 }
 
-td.gradeRowButtons {
+div.gradeRowButtons {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.25rem;
-  width: fit-content;
-  padding-right: 0.5rem;
+  justify-content: space-evenly;
+  gap: 0.2rem;
+  padding-inline: 0.2rem;
+}
+
+div.gradeRowButtons > * {
+  flex-grow: 1;
+  flex-basis: 0;
 }
 
 input[type="text"] {
-  width: 15ch;
+  width: 10ch;
   text-align: center;
   border-width: 0px;
   color: black;
