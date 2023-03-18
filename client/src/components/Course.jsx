@@ -382,7 +382,7 @@ function Category({
                 score: undefined,
                 children: newChildren,
               });
-              setSettingsNeedUpdated(true);
+              cbSetSettingsMenu(null);
             }}
           >
             Add Multiple Child Categories
@@ -495,7 +495,7 @@ function Category({
                 />
               </>
             ) : (
-              `${pointsText} / ${weight ?? 0}`
+              <div style={{ fontWeight: "bold" }}>{`${pointsText} / ${weight ?? 0}`}</div>
             )}
           </td>
           <td className="gradeScore">{scoreText}</td>
