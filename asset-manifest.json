@@ -1,13 +1,13 @@
 {
   "files": {
     "main.css": "/GradeCalculator/static/css/main.6363fc56.css",
-    "main.js": "/GradeCalculator/static/js/main.813e3395.js",
+    "main.js": "/GradeCalculator/static/js/main.c010326c.js",
     "index.html": "/GradeCalculator/index.html",
     "main.6363fc56.css.map": "/GradeCalculator/static/css/main.6363fc56.css.map",
-    "main.813e3395.js.map": "/GradeCalculator/static/js/main.813e3395.js.map"
+    "main.c010326c.js.map": "/GradeCalculator/static/js/main.c010326c.js.map"
   },
   "entrypoints": [
     "static/css/main.6363fc56.css",
-    "static/js/main.813e3395.js"
+    "static/js/main.c010326c.js"
   ]
 }
