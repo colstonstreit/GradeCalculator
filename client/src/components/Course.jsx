@@ -12,6 +12,8 @@ const depthColors = ["#777", "#AAA", "#DDD", "#FFF"];
 function SmartInput({ regex, numeric, initValue = "", handleUpdate, className = "", ...rest }) {
   const [value, setValue] = useState(initValue);
 
+  useEffect(() => setValue(initValue), [initValue]);
+
   function onUpdate(e) {
     if (regex.test(e.target.value)) {
       setValue(e.target.value);
@@ -53,7 +55,8 @@ function newCategory(
   initial = {
     name: "",
     weight: 1,
-    score: null,
+    pointsNum: null,
+    pointsDenom: 100,
   }
 ) {
   const id = newID();
@@ -64,30 +67,42 @@ function newCategory(
 }
 
 function calculateScore(categoryObj, doCap = true) {
-  const { pointsNum = categoryObj.score ?? null, pointsDenom = 100 } = categoryObj;
-  const score = pointsNum !== null ? (pointsNum / pointsDenom) * 100 : "N/A";
+  function calculateScoreHelper(obj, doCap) {
+    const { pointsNum = obj.score ?? null, pointsDenom = 100 } = obj;
+    const score = pointsNum !== null ? (pointsNum / pointsDenom) * 100 : null;
 
-  // If leaf node, just return score
-  if (categoryObj.children === undefined) return score ?? "N/A";
+    // If leaf node, just return score
+    if (obj.children === undefined) return score;
 
-  // Otherwise, must compute score from children
-  let totalWeight = 0;
-  let totalSum = 0;
+    // Otherwise, must compute score from children
+    let totalWeight = 0;
+    let totalSum = 0;
 
-  for (let child of categoryObj.children) {
-    const score = calculateScore(child);
-    if (score !== "N/A") {
-      if (!child.isBonus) {
-        totalWeight += child.weight;
+    const children =
+      obj.dropCount !== undefined && obj.dropCount > 0
+        ? markChildrenToBeDropped(obj.children, obj.dropCount).filter((c) => !c.isDropped)
+        : obj.children;
+
+    for (let child of children) {
+      const score = calculateScoreHelper(child, doCap);
+      if (score !== null) {
+        if (!child.isBonus) {
+          totalWeight += child.weight;
+        }
+        totalSum += child.weight * score;
       }
-      totalSum += child.weight * score;
     }
-  }
-  if (totalWeight === 0) return "N/A";
+    if (totalWeight === 0) return null;
 
-  const computedScore = round(totalSum / totalWeight);
-  if (categoryObj.capped && computedScore > 100 && doCap) return 100;
-  return computedScore;
+    const computedScore = totalSum / totalWeight;
+    if (obj.capped && computedScore > 100 && doCap) return 100;
+    return computedScore;
+  }
+
+  const rawScore = calculateScoreHelper(categoryObj, doCap);
+  if (rawScore === null) return null;
+  if (categoryObj.capped && rawScore > 100 && doCap) return 100;
+  return round(rawScore);
 }
 
 function addIDs(categoryObj) {
@@ -100,13 +115,23 @@ function addIDs(categoryObj) {
   return categoryObj;
 }
 
-function removeIDs(categoryObj) {
-  if (categoryObj.id !== undefined) {
-    delete categoryObj.id;
+function cleanUpBeforeSaving(categoryObj) {
+  delete categoryObj.id;
+  if (categoryObj.children === undefined) {
+    delete categoryObj.capped;
+    delete categoryObj.dropCount;
+    delete categoryObj.childrenWeightFixed;
+    if (categoryObj.pointsDenom === undefined) categoryObj.pointsDenom = 100;
+    categoryObj.pointsNum ??= categoryObj.score ?? null;
+    delete categoryObj.score;
+  } else {
+    delete categoryObj.pointsNum;
+    delete categoryObj.pointsDenom;
+    delete categoryObj.score;
+    categoryObj.children = categoryObj.children.map((child) => cleanUpBeforeSaving(child));
   }
-  if (categoryObj.children !== undefined) {
-    categoryObj.children = categoryObj.children.map((child) => removeIDs(child));
-  }
+  delete categoryObj.isDropped;
+
   return categoryObj;
 }
 
@@ -164,8 +189,22 @@ function flatten(categoryObj) {
   return { ...categoryObj, children: flattened };
 }
 
+function markChildrenToBeDropped(childrenArray, numToDrop) {
+  const scored = childrenArray
+    .map((c, idx) => ({ ...c, score: calculateScore(c), idx }))
+    .filter((c) => !c.isBonus && c.weight !== null && c.score !== null);
+
+  const sorted = scored.sort((left, right) => left.score - right.score);
+  const idxsToDrop = sorted.filter((c, idx) => idx < numToDrop).map((c) => c.idx);
+
+  return childrenArray.map((c, idx) => ({ ...c, isDropped: idxsToDrop.includes(idx) }));
+}
+
 function GradeRequirement({ desiredScore, gradeData }) {
-  const variables = gradeData.children;
+  const variables = gradeData.children.map((c) => {
+    if (typeof c.pointsNum !== "number" && typeof c.score !== "number") return { ...c, score: null };
+    return { ...c, score: ((c.pointsNum ?? c.score) / (c.pointsDenom ?? 100)) * 100 };
+  });
   const knowns = variables.filter((item) => item.score !== null);
   const unknowns = variables.filter((item) => item.score === null);
 
@@ -176,10 +215,6 @@ function GradeRequirement({ desiredScore, gradeData }) {
     ],
     [0, 0]
   );
-
-  // TODO: Generate some kind of data structure that contains constraints (caps)
-  //       and use it to compute the results below as well as for graphing later
-  //       Should have some kind of evaluate function that plugs missing values in
 
   const remainingWeight = unknowns.reduce((total, current) => total + current.weight, 0);
 
@@ -233,9 +268,7 @@ function Category({
   info,
   depth,
   canDelete,
-  canBeBonus,
   weightFixed,
-  isOnlyNonBonus,
   isDropped = false,
   canMoveUp,
   canMoveDown,
@@ -268,18 +301,13 @@ function Category({
   const canHaveChildren = depth < depthColors.length - 1;
   const canDeleteSelf = depth > 0 || canDelete;
 
-  let scoreIgnoreCap = "N/A";
-  if (isLeaf) {
-    scoreIgnoreCap = pointsNum !== null ? round((pointsNum / pointsDenom) * 100) : "N/A";
-  } else {
-    scoreIgnoreCap = calculateScore(info, false);
-  }
+  let scoreIgnoreCap = calculateScore(info, false);
 
   let scoreText = "";
   if (isLeaf) {
-    scoreText = typeof scoreIgnoreCap === "string" ? "N/A" : `${scoreIgnoreCap}%`;
-  } else if (typeof scoreIgnoreCap === "string") {
-    scoreText = scoreIgnoreCap;
+    scoreText = scoreIgnoreCap === null ? "N/A" : `${scoreIgnoreCap}%`;
+  } else if (scoreIgnoreCap === null) {
+    scoreText = "N/A";
   } else if (scoreIgnoreCap > 100) {
     scoreText = capped ? "100%" : `${scoreIgnoreCap}%`;
   } else {
@@ -289,7 +317,7 @@ function Category({
   let pointsText = pointsNum;
   if (!isLeaf) {
     const multiplier = parseFloat(scoreText);
-    pointsText = multiplier ? round((multiplier * weight) / 100) : "?";
+    pointsText = multiplier || multiplier === 0 ? round((multiplier * weight) / 100) : "?";
   }
 
   const handleFieldsChange = useCallback(
@@ -325,7 +353,7 @@ function Category({
   const handleToggleFixChildrenWeights = useCallback(() => {
     if (!childrenWeightFixed) {
       handleFieldsChange({
-        children: children.map((c) => ({ ...newCategory(c), weight: 1 })),
+        children: children.map((c) => (c.isBonus ? c : { ...newCategory(c), weight: 1 })),
         childrenWeightFixed: true,
       });
     } else {
@@ -342,9 +370,12 @@ function Category({
         <div className="settingsMenu" onClick={(e) => e.stopPropagation()}>
           <h3>{name} Settings</h3>
           <button
-            disabled={!canBeBonus}
             onClick={() => {
-              handleFieldsChange({ isBonus: !isBonus });
+              if (isBonus) {
+                handleFieldsChange({ isBonus: false, weight: weightFixed ? 1 : weight });
+              } else {
+                handleFieldsChange({ isBonus: true });
+              }
               setSettingsNeedUpdated(true);
             }}
           >
@@ -429,7 +460,6 @@ function Category({
   }, [
     cbSetSettingsMenu,
     settingsNeedUpdated,
-    canBeBonus,
     canHaveChildren,
     children,
     childrenWeightFixed,
@@ -440,7 +470,11 @@ function Category({
     isBonus,
     isLeaf,
     name,
+    weight,
+    weightFixed,
   ]);
+
+  const markedChildren = !isLeaf && dropCount > 0 ? markChildrenToBeDropped(children, dropCount) : children;
 
   return (
     <>
@@ -457,16 +491,11 @@ function Category({
           <td className="gradeWeight">
             <SmartInput
               className="weight"
-              disabled={weightFixed}
+              disabled={weightFixed && !isBonus}
               regex={numRegex}
               numeric
               initValue={weight}
               handleUpdate={(newVal) => {
-                if ((newVal === null || newVal === 0) && isOnlyNonBonus) {
-                  // Must handle case of deleting only non-bonus
-                  alert("You cannot delete the weight of the only non-bonus item in the category!");
-                  return false;
-                }
                 handleFieldsChange({ weight: newVal });
               }}
               style={{ color: isBonus ? "lime" : "inherit" }}
@@ -524,7 +553,7 @@ function Category({
       )}
       {shouldShowChildren && (
         <>
-          {children.map((c, idx) => (
+          {markedChildren.map((c, idx) => (
             <Category
               key={c.id}
               info={c}
@@ -533,14 +562,7 @@ function Category({
               canMoveUp={idx > 0}
               canMoveDown={idx < children.length - 1}
               canDelete={children.length > 1 || depth > 0}
-              canBeBonus={
-                children.find((child) => !child.isBonus && child.weight !== null && child.weight > 0 && child !== c) !==
-                undefined
-              }
-              isOnlyNonBonus={
-                idx === children.findIndex((c) => !c.isBonus && c.weight !== null && c.weight > 0) &&
-                idx === children.findLastIndex((c) => !c.isBonus && c.weight !== null && c.weight > 0)
-              }
+              isDropped={c.isDropped}
               cbMoveSelf={(dir) => {
                 handleFieldsChange({ children: ArrayUtil.swapInArray(children, idx, idx + dir) });
               }}
@@ -608,7 +630,7 @@ export default function Course({ loggedIn }) {
   const flattenedData = flatten(gradeData);
   const scoreTextIgnoreCap = calculateScore(gradeData, false);
   const scoreText =
-    scoreTextIgnoreCap === "N/A" ? "N/A" : scoreTextIgnoreCap > 100 && gradeData.capped ? 100 : scoreTextIgnoreCap;
+    scoreTextIgnoreCap === null ? "N/A" : scoreTextIgnoreCap > 100 && gradeData.capped ? 100 : scoreTextIgnoreCap;
 
   return (
     <AuthenticatedPage initiallyLoggedIn={loggedIn}>
@@ -629,13 +651,7 @@ export default function Course({ loggedIn }) {
           style={{ cursor: "pointer", display: "inline-block" }}
         >
           {`Score: ${scoreText}`}{" "}
-          <span>
-            {typeof scoreTextIgnoreCap === "number" && scoreTextIgnoreCap > 100
-              ? gradeData.capped
-                ? "(Capped)"
-                : "(Uncapped)"
-              : ""}
-          </span>
+          <span>{scoreTextIgnoreCap !== null && scoreTextIgnoreCap > 100 && gradeData.capped ? "(Capped)" : ""}</span>
         </h2>
 
         <table className="courseTable">
@@ -676,7 +692,7 @@ export default function Course({ loggedIn }) {
             onClick={() => {
               saveCourse(title, {
                 title: currTitle,
-                root: removeIDs(gradeData),
+                root: cleanUpBeforeSaving(gradeData),
                 desiredScore: desiredScore,
               });
             }}
