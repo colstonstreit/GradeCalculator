@@ -288,6 +288,22 @@ li {
 
 .requiredGrade,
 .scoreButtonContainer,
-.statistics {
+.visualization {
   margin-top: 1rem;
+}
+
+.visualization {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.visualization canvas {
+  border: 1px solid black;
+  width: 80%;
+  aspect-ratio: 16/9;
+}
+
+.visualization .scoreSliders {
 }

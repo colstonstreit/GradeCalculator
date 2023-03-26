@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import * as ArrayUtil from "../lib/arrayUtil";
 import StorageAPI from "../lib/storageAPI";
@@ -145,56 +145,6 @@ function round(number, decimals = 2) {
   return Math.round(number * 10 ** decimals) / 10 ** decimals;
 }
 
-function flatten(categoryObj) {
-  // Returns a flattened version of dataObj, i.e., all subcategories
-  // are moved to the same level. Returned as array
-  function flattenHelper(dataObj) {
-    // If it has no weight, it doesn't count. Return empty array
-    if (dataObj.weight === null || dataObj.weight === 0) return [];
-    // If leaf node, then this just return this object (in an array).
-    if (dataObj.children === undefined) return [{ ...dataObj, cappedCategories: [] }];
-
-    // Otherwise, it has children. Must loop over children and add each of their
-    // flattened versions into an array.
-
-    let flattenedChildren = [];
-    for (const child of dataObj.children) {
-      let flattenedChild = flattenHelper(child);
-      flattenedChildren.push(...flattenedChild);
-    }
-
-    // Now must normalize weights to have sum equal to dataObj's weight
-    const totalWeight = flattenedChildren.reduce((total, current) => {
-      if (!!current.isBonus) return total;
-      return total + current.weight;
-    }, 0);
-    const normalized = flattenedChildren.map((descendant) => {
-      const newWeight = (descendant.weight / totalWeight) * dataObj.weight;
-      return { ...descendant, weight: newWeight };
-    });
-
-    const result = normalized;
-
-    // Apply bonus if parent was bonus
-    if (!!dataObj.isBonus) {
-      result.forEach((c) => (c.isBonus = true));
-    }
-
-    // Update capped based on parent and existing cappedCategories array
-    result.forEach((c) => {
-      c.cappedCategories = c.cappedCategories.map((name) => `${dataObj.name}.${name}`);
-      if (!!dataObj.capped) {
-        c.cappedCategories.push(dataObj.name);
-      }
-    });
-
-    return result;
-  }
-
-  const flattened = flattenHelper(categoryObj);
-  return { ...categoryObj, children: flattened };
-}
-
 function markChildrenToBeDropped(childrenArray, numToDrop) {
   const scored = childrenArray
     .map((c, idx) => ({ ...c, score: calculateScore(c), idx }))
@@ -206,65 +156,177 @@ function markChildrenToBeDropped(childrenArray, numToDrop) {
   return childrenArray.map((c, idx) => ({ ...c, isDropped: idxsToDrop.includes(idx) }));
 }
 
-function GradeRequirement({ desiredScore, gradeData }) {
-  const variables = gradeData.children.map((c) => {
-    if (typeof c.pointsNum !== "number" && typeof c.score !== "number") return { ...c, score: null };
-    return { ...c, score: ((c.pointsNum ?? c.score) / (c.pointsDenom ?? 100)) * 100 };
-  });
-  const knowns = variables.filter((item) => item.score !== null);
-  const unknowns = variables.filter((item) => item.score === null);
+function extractUnknowns(data) {
+  if (!data.name || !data.weight) return [];
+  if (data.children === undefined) return data.pointsNum === null ? [data.name] : [];
+  return data.children.reduce((total, child) => [...total, ...extractUnknowns(child)], []);
+}
 
-  const [totalSoFar, totalKnownWeight] = knowns.reduce(
-    ([total, totalWeight], item) => [
-      total + (item.score * item.weight) / 100,
-      !item.isBonus ? totalWeight + item.weight : totalWeight,
-    ],
-    [0, 0]
-  );
+function Canvas({ scores }) {
+  const ref = useRef(null);
 
-  const remainingWeight = unknowns.reduce((total, current) => total + current.weight, 0);
+  const [bottomLeftPos, setBottomLeftPos] = useState({ x: -10, y: -10 });
+  const [worldSize, setWorldSize] = useState({ width: 120, height: 120 });
+  const [mousePos, setMousePos] = useState({ x: -200, y: -200 });
+  const [mouseHovering, setMouseHovering] = useState(false);
+
+  function resizeCanvasToDisplaySize(canvas) {
+    const { width, height } = canvas.getBoundingClientRect();
+    if (canvas.width !== width || canvas.height !== height) {
+      const { devicePixelRatio: ratio = 1 } = window;
+      canvas.width = width * ratio;
+      canvas.height = height * ratio;
+    }
+  }
+
+  function getColor(r, g, b, a = 255) {
+    return { r, g, b, a, toString: () => `rgba(${r}, ${g}, ${b}, ${a})` };
+  }
+
+  useEffect(() => {
+    const canvas = ref.current;
+    const ctx = canvas.getContext("2d");
+    resizeCanvasToDisplaySize(canvas);
+    const { width, height } = canvas;
+
+    function mouseMoveHandler(e) {
+      const rect = e.target.getBoundingClientRect();
+      const { devicePixelRatio: ratio = 1 } = window;
+      const newPos = { x: (e.clientX - rect.left) * ratio, y: (e.clientY - rect.top) * ratio };
+      setMousePos(newPos);
+    }
+
+    function mouseOutHandler(e) {
+      setMouseHovering(false);
+    }
+
+    function mouseOverHandler(e) {
+      setMouseHovering(true);
+    }
+
+    canvas.addEventListener("mousemove", mouseMoveHandler);
+    canvas.addEventListener("mouseover", mouseOverHandler);
+    canvas.addEventListener("mouseout", mouseOutHandler);
+
+    function pixelToWorld(x, y) {
+      const centerX = x + 0.5,
+        centerY = y + 0.5;
+      return {
+        x: bottomLeftPos.x + (centerX / width) * worldSize.width,
+        y: bottomLeftPos.y + (1 - centerY / height) * worldSize.height,
+      };
+    }
+
+    function worldToPixel(x, y) {
+      return {
+        x: Math.floor(((x - bottomLeftPos.x) * width) / worldSize.width),
+        y: height - Math.ceil(((y - bottomLeftPos.y) * height) / worldSize.height),
+      };
+    }
+
+    function drawScore() {
+      const imgData = ctx.createImageData(width, height);
+
+      function drawPixel(x, y, color) {
+        const i = (y * width + x) * 4;
+        imgData.data[i] = color.r;
+        imgData.data[i + 1] = color.g;
+        imgData.data[i + 2] = color.b;
+        imgData.data[i + 3] = color.a;
+      }
+
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const coordinate = pixelToWorld(x, y);
+          drawPixel(
+            x,
+            y,
+            coordinate.x + coordinate.y > 80 && coordinate.x > 0 && coordinate.y > 0
+              ? getColor(0, 255, 0)
+              : getColor(255, 0, 0)
+          );
+        }
+      }
+      ctx.putImageData(imgData, 0, 0);
+    }
+
+    function drawGrid() {
+      const axisColor = getColor(255, 255, 255).toString();
+      const gridColor = getColor(128, 128, 128).toString();
+
+      // Draw Grid Lines
+      ctx.strokeStyle = gridColor;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 10; i <= 90; i += 10) {
+        const { x, y } = worldToPixel(i, i);
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+      }
+      ctx.stroke();
+      ctx.closePath();
+
+      // Draw axes
+      ctx.beginPath();
+      ctx.strokeStyle = axisColor;
+      ctx.lineWidth = 4;
+      const origin = worldToPixel(0, 0);
+      const hundred = worldToPixel(100, 100);
+      ctx.moveTo(origin.x, 0);
+      ctx.lineTo(origin.x, height);
+      ctx.moveTo(0, origin.y);
+      ctx.lineTo(width, origin.y);
+      ctx.moveTo(hundred.x, 0);
+      ctx.lineTo(hundred.x, height);
+      ctx.moveTo(0, hundred.y);
+      ctx.lineTo(width, hundred.y);
+      ctx.stroke();
+      ctx.closePath();
+    }
+
+    function drawMouseIndicator() {
+      if (mouseHovering) {
+        ctx.fillStyle = "black";
+        ctx.moveTo(mousePos.x, mousePos.y);
+        ctx.arc(mousePos.x, mousePos.y, 8, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+    }
+
+    // Clear canvas
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+    // Draw stuff
+    drawScore();
+    drawGrid();
+    drawMouseIndicator();
+
+    return () => {
+      canvas.removeEventListener("mousemove", mouseMoveHandler);
+      canvas.removeEventListener("mouseover", mouseOverHandler);
+      canvas.removeEventListener("mouseout", mouseOutHandler);
+    };
+  }, [bottomLeftPos, worldSize, mouseHovering, mousePos]);
+
+  return <canvas ref={ref}>Canvas is not supported</canvas>;
+}
+
+function ScoreVisualization({ desiredScore, gradeData }) {
+  const unknowns = extractUnknowns(gradeData);
 
   return (
     <>
-      <div className="statistics">
-        <p>
-          You have earned {round(totalSoFar, 2)} out of the {round(totalKnownWeight, 2)} points possible so far, making
-          your current score {totalKnownWeight !== 0 ? round((totalSoFar / totalKnownWeight) * 100) : 100}%.
-        </p>
-        <div>
-          <ul>
-            {knowns.map((known, idx) => (
-              <li key={known + " " + idx}>
-                {round((known.score * known.weight) / 100)} / {!known.isBonus ? round(known.weight) : 0} points from{" "}
-                {known.name}
-              </li>
-            ))}
-          </ul>
+      <div className="visualization">
+        <Canvas />
+        <div className="scoreSliders">
+          <h2>Score Sliders</h2>
+          {unknowns.map((u) => (
+            <p key={u}>{u}</p>
+          ))}
         </div>
-      </div>
-      <div className="requiredGrade">
-        {unknowns.length === 1 ? (
-          <p>
-            To get a {desiredScore}% in this course, you will need to get at least a{" "}
-            {round(((desiredScore - totalSoFar) / unknowns[0].weight) * 100)}% on "{unknowns[0].name}".
-          </p>
-        ) : unknowns.length > 1 ? (
-          totalKnownWeight === 100 ? (
-            <p>
-              Hence, to get a {desiredScore}% in this course, you will need to get at least{" "}
-              {round(desiredScore - round(totalSoFar), 2)} of the remaining {round(remainingWeight)} bonus points, which
-              is an average score of {round(((desiredScore - totalSoFar) / remainingWeight) * 100)}%.
-            </p>
-          ) : (
-            <p>
-              Hence, to get a {desiredScore}% in this course, you will need to get at least{" "}
-              {round(desiredScore - round(totalSoFar), 2)} of the remaining {round(remainingWeight)} points, which is an
-              average score of {round(((desiredScore - totalSoFar) / remainingWeight) * 100)}%.
-            </p>
-          )
-        ) : (
-          ""
-        )}
       </div>
     </>
   );
@@ -682,7 +744,6 @@ export default function Course({ loggedIn }) {
 
   if (!loaded) return "";
 
-  const flattenedData = flatten(gradeData);
   const scoreTextIgnoreCap = calculateScore(gradeData, false);
   const scoreText =
     scoreTextIgnoreCap === null ? "N/A" : scoreTextIgnoreCap > 100 && gradeData.capped ? 100 : scoreTextIgnoreCap;
@@ -757,7 +818,7 @@ export default function Course({ loggedIn }) {
           <button onClick={() => deleteCourse(title)}>Delete Course</button>
         </div>
       </div>
-      <GradeRequirement desiredScore={desiredScore} gradeData={flattenedData} />
+      <ScoreVisualization desiredScore={desiredScore} gradeData={gradeData} />
       {!!settingsMenu && (
         <div className="darkOverlay" onClick={() => setSettingsMenu(null)}>
           {settingsMenu}
