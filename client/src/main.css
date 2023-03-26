@@ -294,16 +294,38 @@ li {
 
 .visualization {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 1rem;
   align-items: center;
+  width: 100%;
 }
 
 .visualization canvas {
+  width: 100%;
   border: 1px solid black;
-  width: 80%;
   aspect-ratio: 16/9;
 }
 
 .visualization .scoreSliders {
+  width: 100%;
+}
+
+.visualization p.name {
+  min-width: 15ch;
+}
+
+.visualization .axisVariables {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.slider {
+  display: flex;
+  gap: 1rem;
+  width: 100%;
+}
+
+.slider input {
+  display: block;
+  flex-grow: 1;
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import * as ArrayUtil from "../lib/arrayUtil";
 import StorageAPI from "../lib/storageAPI";
@@ -72,13 +72,18 @@ function newCategory(
   };
 }
 
-function calculateScore(categoryObj, doCap = true) {
-  function calculateScoreHelper(obj, doCap) {
+function calculateScore(categoryObj, doCap = true, env = {}) {
+  function calculateScoreHelper(obj, doCap, env) {
     const { pointsNum = obj.score ?? null, pointsDenom = 100 } = obj;
     const score = pointsNum !== null ? (pointsNum / pointsDenom) * 100 : null;
 
     // If leaf node, just return score
-    if (obj.children === undefined) return score;
+    if (obj.children === undefined) {
+      if (score === null && obj.name in env) {
+        return env[obj.name];
+      }
+      return score;
+    }
 
     // Otherwise, must compute score from children
     let totalWeight = 0;
@@ -90,7 +95,7 @@ function calculateScore(categoryObj, doCap = true) {
         : obj.children;
 
     for (let child of children) {
-      const score = calculateScoreHelper(child, doCap);
+      const score = calculateScoreHelper(child, doCap, env);
       if (score !== null) {
         if (!child.isBonus) {
           totalWeight += child.weight;
@@ -105,7 +110,7 @@ function calculateScore(categoryObj, doCap = true) {
     return computedScore;
   }
 
-  const rawScore = calculateScoreHelper(categoryObj, doCap);
+  const rawScore = calculateScoreHelper(categoryObj, doCap, env);
   if (rawScore === null) return null;
   if (categoryObj.capped && rawScore > 100 && doCap) return 100;
   return round(rawScore);
@@ -162,7 +167,7 @@ function extractUnknowns(data) {
   return data.children.reduce((total, child) => [...total, ...extractUnknowns(child)], []);
 }
 
-function Canvas({ scores }) {
+function Canvas({ scoreMeetsGoal }) {
   const ref = useRef(null);
 
   const [bottomLeftPos, setBottomLeftPos] = useState({ x: -10, y: -10 });
@@ -241,7 +246,7 @@ function Canvas({ scores }) {
           drawPixel(
             x,
             y,
-            coordinate.x + coordinate.y > 80 && coordinate.x > 0 && coordinate.y > 0
+            coordinate.x > 0 && coordinate.y > 0 && scoreMeetsGoal(coordinate.x, coordinate.y)
               ? getColor(0, 255, 0)
               : getColor(255, 0, 0)
           );
@@ -309,23 +314,82 @@ function Canvas({ scores }) {
       canvas.removeEventListener("mouseover", mouseOverHandler);
       canvas.removeEventListener("mouseout", mouseOutHandler);
     };
-  }, [bottomLeftPos, worldSize, mouseHovering, mousePos]);
+  }, [bottomLeftPos, worldSize, mouseHovering, mousePos, scoreMeetsGoal]);
 
   return <canvas ref={ref}>Canvas is not supported</canvas>;
 }
 
 function ScoreVisualization({ desiredScore, gradeData }) {
-  const unknowns = extractUnknowns(gradeData);
+  const unknowns = useMemo(() => extractUnknowns(gradeData), [gradeData]);
+  const [unknownX, setUnknownX] = useState(unknowns[0] ?? null);
+  const [unknownY, setUnknownY] = useState(unknowns[1] ?? null);
+  const [envSliderValues, setEnvSliderValues] = useState(
+    unknowns.reduce((total, current) => ({ ...total, [current]: 50 }), {})
+  );
+
+  useEffect(() => {
+    setEnvSliderValues((prev) => {
+      let sliderValues = unknowns.reduce((total, current) => ({ ...total, [current]: 50 }), {});
+      for (const key of Object.keys(sliderValues)) {
+        if (key in prev) {
+          sliderValues[key] = prev[key];
+        }
+      }
+      return sliderValues;
+    });
+  }, [unknowns]);
+
+  function scoreMeetsGoal(x, y) {
+    const env = envSliderValues;
+    env[unknownX] = x;
+    env[unknownY] = y;
+    return calculateScore(gradeData, true, env) >= desiredScore;
+  }
 
   return (
     <>
       <div className="visualization">
-        <Canvas />
+        <h2>What If?</h2>
+        <Canvas scoreMeetsGoal={scoreMeetsGoal} />
+        <div className="axisVariables">
+          <p>
+            X Axis:{" "}
+            <select value={unknownX} onChange={(e) => setUnknownX(e.target.value)}>
+              {unknowns.map((u) => (
+                <option key={u} value={u}>
+                  {u}
+                </option>
+              ))}
+            </select>
+          </p>
+          <p>
+            Y Axis:{" "}
+            <select value={unknownY} onChange={(e) => setUnknownY(e.target.value)}>
+              {unknowns.map((u) => (
+                <option key={u} value={u}>
+                  {u}
+                </option>
+              ))}
+            </select>
+          </p>
+        </div>
         <div className="scoreSliders">
-          <h2>Score Sliders</h2>
-          {unknowns.map((u) => (
-            <p key={u}>{u}</p>
-          ))}
+          {unknowns
+            .filter((v) => v !== unknownX && v !== unknownY)
+            .map((u) => (
+              <div className="slider" key={u}>
+                <p className="name">{u}: </p>
+                <input
+                  type="range"
+                  min={0}
+                  max={110}
+                  step={1}
+                  value={envSliderValues[u] ?? 50}
+                  onChange={(e) => setEnvSliderValues((prev) => ({ ...prev, [u]: parseFloat(e.target.value) }))}
+                />{" "}
+                <p>{envSliderValues[u]}</p>
+              </div>
+            ))}
         </div>
       </div>
     </>
@@ -525,6 +589,16 @@ function Category({
                   }}
                 >
                   {hidden ? "Show" : "Hide"} Children
+                </button>
+              </div>
+              <div>
+                <button
+                  onClick={() => {
+                    handleFieldsChange({ capped: !capped });
+                    setSettingsNeedUpdated(true);
+                  }}
+                >
+                  {capped ? "" : "Don't"} Cap at 100%
                 </button>
               </div>
               <div>
