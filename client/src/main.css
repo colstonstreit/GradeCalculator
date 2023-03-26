@@ -25,6 +25,8 @@ form {
 
 html {
   background-color: white;
+  font-family: arial;
+  font-size: 0.9rem;
 }
 
 nav {
@@ -166,11 +168,17 @@ main {
   flex-direction: column;
 }
 
-.darkOverlay .settingsMenu button {
-  width: 100%;
+.darkOverlay .settingsMenu > div {
   border: 1px solid black;
   margin: 0;
   padding: 0.5rem;
+}
+
+.darkOverlay .settingsMenu > div button {
+  width: 100%;
+  background-color: transparent;
+  border: none;
+  font: inherit;
 }
 
 .darkOverlay .loginPrompt {

@@ -9,6 +9,12 @@ const numRegex = /^([0-9]+((\.)|(\.[0-9]{0,3}))?)?$/;
 const alphaNumRegex = /^([0-9a-zA-z ]){0,20}$/;
 const depthColors = ["#777", "#AAA", "#DDD", "#FFF"];
 
+const ChildrenWeightModes = Object.freeze({
+  FORCED_EQUAL: "forced equal",
+  CUSTOMIZABLE: "customizable",
+  POINT_BASED: "point-based",
+});
+
 function SmartInput({ regex, numeric, initValue = "", handleUpdate, className = "", ...rest }) {
   const [value, setValue] = useState(initValue);
 
@@ -120,7 +126,7 @@ function cleanUpBeforeSaving(categoryObj) {
   if (categoryObj.children === undefined) {
     delete categoryObj.capped;
     delete categoryObj.dropCount;
-    delete categoryObj.childrenWeightFixed;
+    delete categoryObj.childrenWeightMode;
     if (categoryObj.pointsDenom === undefined) categoryObj.pointsDenom = 100;
     categoryObj.pointsNum ??= categoryObj.score ?? null;
     delete categoryObj.score;
@@ -268,7 +274,7 @@ function Category({
   info,
   depth,
   canDelete,
-  weightFixed,
+  weightMode,
   isDropped = false,
   canMoveUp,
   canMoveDown,
@@ -289,7 +295,7 @@ function Category({
     children,
     capped = false,
     isBonus = false,
-    childrenWeightFixed = false,
+    childrenWeightMode = ChildrenWeightModes.CUSTOMIZABLE,
     dropCount = 0,
   } = info;
   const [hidden, setHidden] = useState(false);
@@ -334,9 +340,11 @@ function Category({
   function deleteChild(idx) {
     if (children.length === 1) {
       handleFieldsChange({
-        score: null,
+        pointsNum: null,
+        pointsDenom: 100,
         children: undefined,
         dropCount: undefined,
+        weight: weightMode === ChildrenWeightModes.POINT_BASED ? 100 : weight,
       });
     } else {
       // Must handle case of deleting only non-bonus
@@ -350,108 +358,146 @@ function Category({
     }
   }
 
-  const handleToggleFixChildrenWeights = useCallback(() => {
-    if (!childrenWeightFixed) {
-      handleFieldsChange({
-        children: children.map((c) => (c.isBonus ? c : { ...newCategory(c), weight: 1 })),
-        childrenWeightFixed: true,
-      });
-    } else {
-      handleFieldsChange({
-        childrenWeightFixed: false,
-        dropCount: undefined,
-      });
-    }
-  }, [children, childrenWeightFixed, handleFieldsChange]);
+  const handleWeightModeChange = useCallback(
+    (newValue) => {
+      switch (newValue) {
+        case ChildrenWeightModes.CUSTOMIZABLE:
+          handleFieldsChange({
+            childrenWeightMode: newValue,
+            dropCount: undefined,
+          });
+          break;
+        case ChildrenWeightModes.FORCED_EQUAL:
+          handleFieldsChange({
+            children: children.map((c) => (c.isBonus ? c : { ...c, weight: 1 })),
+            childrenWeightMode: newValue,
+          });
+          break;
+        case ChildrenWeightModes.POINT_BASED:
+          handleFieldsChange({
+            children: children.map((c) => ({ ...c, weight: c.pointsDenom ?? c.weight })),
+            childrenWeightMode: newValue,
+          });
+          break;
+        default:
+          console.log("Invalid weight mode: " + newValue);
+          break;
+      }
+    },
+    [children, handleFieldsChange]
+  );
 
   useEffect(() => {
     if (settingsNeedUpdated)
       cbSetSettingsMenu(
         <div className="settingsMenu" onClick={(e) => e.stopPropagation()}>
           <h3>{name} Settings</h3>
-          <button
-            onClick={() => {
-              if (isBonus) {
-                handleFieldsChange({ isBonus: false, weight: weightFixed ? 1 : weight });
-              } else {
-                handleFieldsChange({ isBonus: true });
-              }
-              setSettingsNeedUpdated(true);
-            }}
-          >
-            {!!isBonus ? "Undo Bonus Assignment" : "Make Bonus Assignment"}
-          </button>
-          <button
-            disabled={!canHaveChildren}
-            onClick={() => {
-              const newChildren = children === undefined ? [newCategory()] : [...children, newCategory()];
-              handleFieldsChange({
-                score: undefined,
-                children: newChildren,
-              });
-              setSettingsNeedUpdated(true);
-            }}
-          >
-            Add Child Category
-          </button>
-          <button
-            title="Add Children"
-            disabled={!canHaveChildren}
-            onClick={() => {
-              let count = prompt("How many children would you like to add?")?.trim();
-              if (!count || isNaN(count)) return;
-              count = Math.floor(parseFloat(count));
-              if (count <= 0) return;
-              let name = prompt("What should their name be? (Will be named by 'name #')")?.trim();
-              if (!name) return;
-              const newCategories = [...Array(count).keys()].map((i) => ({
-                ...newCategory(),
-                name: `${name} ${i + 1}`,
-              }));
-              const newChildren = children === undefined ? newCategories : [...children, ...newCategories];
-              handleFieldsChange({
-                score: undefined,
-                children: newChildren,
-              });
-              cbSetSettingsMenu(null);
-            }}
-          >
-            Add Multiple Child Categories
-          </button>
+          <div>
+            <button
+              onClick={() => {
+                if (isBonus) {
+                  let newWeight = weight;
+                  if (weightMode === ChildrenWeightModes.FORCED_EQUAL) {
+                    newWeight = 1;
+                  } else if (weightMode === ChildrenWeightModes.POINT_BASED) {
+                    newWeight = pointsDenom;
+                  }
+                  handleFieldsChange({ isBonus: false, weight: newWeight });
+                } else {
+                  handleFieldsChange({ isBonus: true });
+                }
+                setSettingsNeedUpdated(true);
+              }}
+            >
+              {!!isBonus ? "Undo Bonus Assignment" : "Make Bonus Assignment"}
+            </button>
+          </div>
+          <div>
+            <button
+              disabled={!canHaveChildren}
+              onClick={() => {
+                const newChildren = children === undefined ? [newCategory()] : [...children, newCategory()];
+                handleFieldsChange({
+                  score: undefined,
+                  children: newChildren,
+                });
+                setSettingsNeedUpdated(true);
+              }}
+            >
+              Add Child Category
+            </button>
+          </div>
+          <div>
+            <button
+              title="Add Children"
+              disabled={!canHaveChildren}
+              onClick={() => {
+                let count = prompt("How many children would you like to add?")?.trim();
+                if (!count || isNaN(count)) return;
+                count = Math.floor(parseFloat(count));
+                if (count <= 0) return;
+                let name = prompt("What should their name be? (Will be named by 'name #')")?.trim();
+                if (!name) return;
+                const newCategories = [...Array(count).keys()].map((i) => ({
+                  ...newCategory(),
+                  name: `${name} ${i + 1}`,
+                }));
+                const newChildren = children === undefined ? newCategories : [...children, ...newCategories];
+                handleFieldsChange({
+                  score: undefined,
+                  children: newChildren,
+                });
+                cbSetSettingsMenu(null);
+              }}
+            >
+              Add Multiple Child Categories
+            </button>
+          </div>
           {!isLeaf && (
             <>
-              <button
-                onClick={() => {
-                  setHidden((prev) => !prev);
-                  setSettingsNeedUpdated(true);
-                }}
-              >
-                {hidden ? "Show" : "Hide"} Children
-              </button>
-              <button
-                onClick={() => {
-                  handleToggleFixChildrenWeights();
-                  setSettingsNeedUpdated(true);
-                }}
-              >
-                {childrenWeightFixed ? "Allow Children Weights to Vary" : "Force Children Weights Equal"}
-              </button>
-              <button
-                disabled={!childrenWeightFixed}
-                onClick={() => {
-                  let count = prompt("How many should be dropped?")?.trim();
-                  if (count && !isNaN(count)) {
-                    count = Math.ceil(parseFloat(count));
-                    if (count <= 0) count = undefined;
-                  } else {
-                    count = undefined;
-                  }
-                  handleFieldsChange({ dropCount: count });
-                  setSettingsNeedUpdated(true);
-                }}
-              >
-                Drop Assignments{childrenWeightFixed && dropCount ? `: ${dropCount}` : ""}
-              </button>
+              <div>
+                <button
+                  onClick={() => {
+                    setHidden((prev) => !prev);
+                    setSettingsNeedUpdated(true);
+                  }}
+                >
+                  {hidden ? "Show" : "Hide"} Children
+                </button>
+              </div>
+              <div>
+                Children Weights:{" "}
+                <select
+                  onChange={(e) => {
+                    handleWeightModeChange(e.target.value);
+                    setSettingsNeedUpdated(true);
+                  }}
+                  value={childrenWeightMode}
+                >
+                  <option value={ChildrenWeightModes.CUSTOMIZABLE}>Customizable</option>
+                  <option value={ChildrenWeightModes.FORCED_EQUAL}>Forced Equal</option>
+                  <option value={ChildrenWeightModes.POINT_BASED}>Point-Based</option>
+                </select>
+              </div>
+              <div>
+                <button
+                  disabled={childrenWeightMode !== ChildrenWeightModes.FORCED_EQUAL}
+                  onClick={() => {
+                    let count = prompt("How many should be dropped?")?.trim();
+                    if (count && !isNaN(count)) {
+                      count = Math.ceil(parseFloat(count));
+                      if (count <= 0) count = undefined;
+                    } else {
+                      count = undefined;
+                    }
+                    handleFieldsChange({ dropCount: count });
+                    setSettingsNeedUpdated(true);
+                  }}
+                >
+                  Drop Assignments
+                  {childrenWeightMode === ChildrenWeightModes.FORCED_EQUAL && dropCount ? `: ${dropCount}` : ""}
+                </button>
+              </div>
             </>
           )}
         </div>
@@ -462,16 +508,17 @@ function Category({
     settingsNeedUpdated,
     canHaveChildren,
     children,
-    childrenWeightFixed,
+    childrenWeightMode,
     dropCount,
     handleFieldsChange,
-    handleToggleFixChildrenWeights,
+    handleWeightModeChange,
     hidden,
     isBonus,
     isLeaf,
     name,
     weight,
-    weightFixed,
+    weightMode,
+    pointsDenom,
   ]);
 
   const markedChildren = !isLeaf && dropCount > 0 ? markChildrenToBeDropped(children, dropCount) : children;
@@ -491,7 +538,10 @@ function Category({
           <td className="gradeWeight">
             <SmartInput
               className="weight"
-              disabled={weightFixed && !isBonus}
+              disabled={
+                (weightMode === ChildrenWeightModes.POINT_BASED && isLeaf) ||
+                (weightMode === ChildrenWeightModes.FORCED_EQUAL && !isBonus)
+              }
               regex={numRegex}
               numeric
               initValue={weight}
@@ -519,7 +569,12 @@ function Category({
                   initValue={pointsDenom}
                   placeholder={100}
                   handleUpdate={(newVal) => {
-                    handleFieldsChange({ pointsDenom: newVal <= 0 ? 100 : newVal });
+                    const newPointsDenom = newVal <= 0 ? 100 : newVal;
+                    if (weightMode === ChildrenWeightModes.POINT_BASED) {
+                      handleFieldsChange({ pointsDenom: newPointsDenom, weight: newPointsDenom });
+                    } else {
+                      handleFieldsChange({ pointsDenom: newPointsDenom });
+                    }
                   }}
                 />
               </>
@@ -558,7 +613,7 @@ function Category({
               key={c.id}
               info={c}
               depth={depth + 1}
-              weightFixed={childrenWeightFixed}
+              weightMode={childrenWeightMode}
               canMoveUp={idx > 0}
               canMoveDown={idx < children.length - 1}
               canDelete={children.length > 1 || depth > 0}
