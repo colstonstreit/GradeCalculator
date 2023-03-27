@@ -207,6 +207,7 @@ function Canvas({ computeScore, desiredScore }) {
       const { devicePixelRatio: ratio = 1 } = window;
       const newPos = { x: (e.touches[0].clientX - rect.left) * ratio, y: (e.touches[0].clientY - rect.top) * ratio };
       setMousePos(newPos);
+      e.preventDefault();
     }
 
     function mouseDownHandler(e) {
