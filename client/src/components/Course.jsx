@@ -167,7 +167,7 @@ function extractUnknowns(data) {
   return data.children.reduce((total, child) => [...total, ...extractUnknowns(child)], []);
 }
 
-function Canvas({ scoreMeetsGoal }) {
+function Canvas({ computeScore, desiredScore }) {
   const ref = useRef(null);
 
   const [bottomLeftPos, setBottomLeftPos] = useState({ x: -10, y: -10 });
@@ -193,6 +193,7 @@ function Canvas({ scoreMeetsGoal }) {
     const ctx = canvas.getContext("2d");
     resizeCanvasToDisplaySize(canvas);
     const { width, height } = canvas;
+    const imgData = ctx.createImageData(width, height);
 
     function mouseMoveHandler(e) {
       const rect = e.target.getBoundingClientRect();
@@ -213,6 +214,13 @@ function Canvas({ scoreMeetsGoal }) {
     canvas.addEventListener("mouseover", mouseOverHandler);
     canvas.addEventListener("mouseout", mouseOutHandler);
 
+    function worldToPixel(x, y) {
+      return {
+        x: Math.floor(((x - bottomLeftPos.x) * width) / worldSize.width),
+        y: height - Math.ceil(((y - bottomLeftPos.y) * height) / worldSize.height),
+      };
+    }
+
     function pixelToWorld(x, y) {
       const centerX = x + 0.5,
         centerY = y + 0.5;
@@ -222,16 +230,21 @@ function Canvas({ scoreMeetsGoal }) {
       };
     }
 
-    function worldToPixel(x, y) {
-      return {
-        x: Math.floor(((x - bottomLeftPos.x) * width) / worldSize.width),
-        y: height - Math.ceil(((y - bottomLeftPos.y) * height) / worldSize.height),
-      };
+    function getCutoffBinarySearch(y) {
+      function binarySearch(low, high) {
+        if (low >= high) return low;
+        const mid = Math.floor((low + high) / 2);
+        const coordinate = pixelToWorld(mid, y);
+        const score = computeScore(coordinate.x, coordinate.y);
+        if (score >= desiredScore) {
+          return binarySearch(low, mid);
+        }
+        return binarySearch(mid + 1, high);
+      }
+      return binarySearch(0, width - 1);
     }
 
     function drawScore() {
-      const imgData = ctx.createImageData(width, height);
-
       function drawPixel(x, y, color) {
         const i = (y * width + x) * 4;
         imgData.data[i] = color.r;
@@ -240,18 +253,19 @@ function Canvas({ scoreMeetsGoal }) {
         imgData.data[i + 3] = color.a;
       }
 
+      const goodColor = getColor(0, 255, 0);
+      const badColor = getColor(255, 0, 0);
+
       for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-          const coordinate = pixelToWorld(x, y);
-          drawPixel(
-            x,
-            y,
-            coordinate.x > 0 && coordinate.y > 0 && scoreMeetsGoal(coordinate.x, coordinate.y)
-              ? getColor(0, 255, 0)
-              : getColor(255, 0, 0)
-          );
+        const lastBadX = getCutoffBinarySearch(y);
+        for (let x = 0; x <= lastBadX; x++) {
+          drawPixel(x, y, badColor);
+        }
+        for (let x = lastBadX + 1; x < width; x++) {
+          drawPixel(x, y, goodColor);
         }
       }
+
       ctx.putImageData(imgData, 0, 0);
     }
 
@@ -297,6 +311,13 @@ function Canvas({ scoreMeetsGoal }) {
         ctx.moveTo(mousePos.x, mousePos.y);
         ctx.arc(mousePos.x, mousePos.y, 8, 0, 2 * Math.PI);
         ctx.fill();
+
+        const coordinate = pixelToWorld(mousePos.x, mousePos.y);
+        const score = computeScore(coordinate.x, coordinate.y);
+        ctx.textAlign = "center";
+        ctx.font = `24px Arial`;
+        ctx.fillText(`(${round(coordinate.x)}%, ${round(coordinate.y)}%)`, mousePos.x, mousePos.y - 50);
+        ctx.fillText(`Score: ${round(score)}%`, mousePos.x, mousePos.y - 25);
       }
     }
 
@@ -314,7 +335,7 @@ function Canvas({ scoreMeetsGoal }) {
       canvas.removeEventListener("mouseover", mouseOverHandler);
       canvas.removeEventListener("mouseout", mouseOutHandler);
     };
-  }, [bottomLeftPos, worldSize, mouseHovering, mousePos, scoreMeetsGoal]);
+  }, [bottomLeftPos, worldSize, mouseHovering, mousePos, computeScore, desiredScore]);
 
   return <canvas ref={ref}>Canvas is not supported</canvas>;
 }
@@ -324,12 +345,14 @@ function ScoreVisualization({ desiredScore, gradeData }) {
   const [unknownX, setUnknownX] = useState(unknowns[0] ?? null);
   const [unknownY, setUnknownY] = useState(unknowns[1] ?? null);
   const [envSliderValues, setEnvSliderValues] = useState(
-    unknowns.reduce((total, current) => ({ ...total, [current]: 50 }), {})
+    unknowns.reduce((total, current) => ({ ...total, [current]: 80 }), {})
   );
 
   useEffect(() => {
+    setUnknownX(unknowns[0] ?? null);
+    setUnknownY(unknowns[1] ?? null);
     setEnvSliderValues((prev) => {
-      let sliderValues = unknowns.reduce((total, current) => ({ ...total, [current]: 50 }), {});
+      let sliderValues = unknowns.reduce((total, current) => ({ ...total, [current]: 80 }), {});
       for (const key of Object.keys(sliderValues)) {
         if (key in prev) {
           sliderValues[key] = prev[key];
@@ -339,37 +362,52 @@ function ScoreVisualization({ desiredScore, gradeData }) {
     });
   }, [unknowns]);
 
-  function scoreMeetsGoal(x, y) {
+  function swapAxes() {
+    const temp = unknownX;
+    setUnknownX(unknownY);
+    setUnknownY(temp);
+  }
+
+  function computeScore(x, y) {
     const env = envSliderValues;
-    env[unknownX] = x;
-    env[unknownY] = y;
-    return calculateScore(gradeData, true, env) >= desiredScore;
+    if (unknownX) env[unknownX] = x;
+    if (unknownY) env[unknownY] = y;
+    return calculateScore(gradeData, true, env);
   }
 
   return (
     <>
       <div className="visualization">
         <h2>What If?</h2>
-        <Canvas scoreMeetsGoal={scoreMeetsGoal} />
+        <Canvas computeScore={computeScore} desiredScore={desiredScore} />
         <div className="axisVariables">
           <p>
             X Axis:{" "}
-            <select value={unknownX} onChange={(e) => setUnknownX(e.target.value)}>
-              {unknowns.map((u) => (
-                <option key={u} value={u}>
-                  {u}
-                </option>
-              ))}
+            <select value={unknownX ?? ""} onChange={(e) => setUnknownX(e.target.value)}>
+              <option value="">----- None -----</option>
+              {unknowns
+                .filter((u) => u !== unknownY)
+                .map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
             </select>
           </p>
           <p>
+            <button onClick={swapAxes}>Swap</button>
+          </p>
+          <p>
             Y Axis:{" "}
-            <select value={unknownY} onChange={(e) => setUnknownY(e.target.value)}>
-              {unknowns.map((u) => (
-                <option key={u} value={u}>
-                  {u}
-                </option>
-              ))}
+            <select value={unknownY ?? ""} onChange={(e) => setUnknownY(e.target.value)}>
+              <option value="">----- None -----</option>
+              {unknowns
+                .filter((u) => u !== unknownX)
+                .map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
             </select>
           </p>
         </div>
@@ -382,9 +420,9 @@ function ScoreVisualization({ desiredScore, gradeData }) {
                 <input
                   type="range"
                   min={0}
-                  max={110}
+                  max={100}
                   step={1}
-                  value={envSliderValues[u] ?? 50}
+                  value={envSliderValues[u] ?? 80}
                   onChange={(e) => setEnvSliderValues((prev) => ({ ...prev, [u]: parseFloat(e.target.value) }))}
                 />{" "}
                 <p>{envSliderValues[u]}</p>
@@ -655,6 +693,7 @@ function Category({
     weight,
     weightMode,
     pointsDenom,
+    capped,
   ]);
 
   const markedChildren = !isLeaf && dropCount > 0 ? markChildrenToBeDropped(children, dropCount) : children;

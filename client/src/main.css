@@ -317,6 +317,11 @@ li {
 .visualization .axisVariables {
   display: flex;
   gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.visualization .axisVariables button {
+  padding-inline: 0.5rem;
 }
 
 .slider {
