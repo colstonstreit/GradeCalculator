@@ -419,7 +419,7 @@ function ScoreVisualization({ desiredScore, gradeData }) {
   }
 
   function computeScore(x, y) {
-    const env = envSliderValues;
+    const env = { ...envSliderValues };
     if (unknownX) env[unknownX] = x;
     if (unknownY) env[unknownY] = y;
     return calculateScore(gradeData, true, env);
@@ -475,7 +475,7 @@ function ScoreVisualization({ desiredScore, gradeData }) {
                   value={envSliderValues[u] ?? 80}
                   onChange={(e) => setEnvSliderValues((prev) => ({ ...prev, [u]: parseFloat(e.target.value) }))}
                 />{" "}
-                <p>{envSliderValues[u]}</p>
+                <p>{round(envSliderValues[u])}</p>
               </div>
             ))}
         </div>
