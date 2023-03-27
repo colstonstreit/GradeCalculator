@@ -169,11 +169,11 @@ function extractUnknowns(data) {
 
 function Canvas({ computeScore, desiredScore }) {
   const ref = useRef(null);
-
   const [bottomLeftPos, setBottomLeftPos] = useState({ x: -10, y: -10 });
   const [worldSize, setWorldSize] = useState({ width: 120, height: 120 });
-  const [mousePos, setMousePos] = useState({ x: -200, y: -200 });
-  const [mouseHovering, setMouseHovering] = useState(false);
+  const [mousePos, setMousePos] = useState({ x: -2000, y: -2000 });
+  const [mouseDragStart, setMouseDragStart] = useState(null);
+  const [mouseDragging, setMouseDragging] = useState(false);
 
   function resizeCanvasToDisplaySize(canvas) {
     const { width, height } = canvas.getBoundingClientRect();
@@ -202,22 +202,67 @@ function Canvas({ computeScore, desiredScore }) {
       setMousePos(newPos);
     }
 
-    function mouseOutHandler(e) {
-      setMouseHovering(false);
+    function touchMoveHandler(e) {
+      const rect = e.target.getBoundingClientRect();
+      const { devicePixelRatio: ratio = 1 } = window;
+      const newPos = { x: (e.touches[0].clientX - rect.left) * ratio, y: (e.touches[0].clientY - rect.top) * ratio };
+      setMousePos(newPos);
     }
 
-    function mouseOverHandler(e) {
-      setMouseHovering(true);
+    function mouseDownHandler(e) {
+      setMouseDragging(true);
+      const rect = e.target.getBoundingClientRect();
+      const { devicePixelRatio: ratio = 1 } = window;
+      const newPos = { x: (e.clientX - rect.left) * ratio, y: (e.clientY - rect.top) * ratio };
+      setMouseDragStart(newPos);
     }
 
-    canvas.addEventListener("mousemove", mouseMoveHandler);
-    canvas.addEventListener("mouseover", mouseOverHandler);
-    canvas.addEventListener("mouseout", mouseOutHandler);
+    function touchDownHandler(e) {
+      setMouseDragging(true);
+      const rect = e.target.getBoundingClientRect();
+      const { devicePixelRatio: ratio = 1 } = window;
+      const newPos = { x: (e.touches[0].clientX - rect.left) * ratio, y: (e.touches[0].clientY - rect.top) * ratio };
+      setMousePos(newPos);
+      setMouseDragStart(newPos);
+    }
+
+    function mouseUpHandler(e) {
+      setMouseDragging(false);
+      setMouseDragStart(null);
+      const mouseDiffX = (-(mousePos.x - mouseDragStart.x) * worldSize.width) / width;
+      const mouseDiffY = ((mousePos.y - mouseDragStart.y) * worldSize.height) / height;
+      setBottomLeftPos((prev) => ({
+        x: prev.x + mouseDiffX,
+        y: prev.y + mouseDiffY,
+      }));
+    }
+
+    const isMobile = window.matchMedia("only screen and (max-width: 480px)").matches;
+
+    if (isMobile) {
+      canvas.addEventListener("touchmove", touchMoveHandler);
+      canvas.addEventListener("touchstart", touchDownHandler);
+      canvas.addEventListener("touchend", mouseUpHandler);
+    } else {
+      canvas.addEventListener("mousemove", mouseMoveHandler);
+      canvas.addEventListener("mousedown", mouseDownHandler);
+      canvas.addEventListener("mouseup", mouseUpHandler);
+    }
+
+    let actualBottomLeftPos = bottomLeftPos;
+    if (mouseDragging) {
+      const mouseDiffX = (-(mousePos.x - mouseDragStart.x) * worldSize.width) / width;
+      const mouseDiffY = ((mousePos.y - mouseDragStart.y) * worldSize.height) / height;
+      actualBottomLeftPos = {
+        x: bottomLeftPos.x + mouseDiffX,
+        y: bottomLeftPos.y + mouseDiffY,
+      };
+    }
 
     function worldToPixel(x, y) {
       return {
-        x: Math.floor(((x - bottomLeftPos.x) * width) / worldSize.width),
-        y: height - Math.ceil(((y - bottomLeftPos.y) * height) / worldSize.height),
+        x: Math.floor(((x - actualBottomLeftPos.x) * width) / worldSize.width),
+        y: height - Math.ceil(((y - actualBottomLeftPos.y) * height) / worldSize.height),
       };
     }
 
@@ -225,8 +270,8 @@ function Canvas({ computeScore, desiredScore }) {
       const centerX = x + 0.5,
         centerY = y + 0.5;
       return {
-        x: bottomLeftPos.x + (centerX / width) * worldSize.width,
-        y: bottomLeftPos.y + (1 - centerY / height) * worldSize.height,
+        x: actualBottomLeftPos.x + (centerX / width) * worldSize.width,
+        y: actualBottomLeftPos.y + (1 - centerY / height) * worldSize.height,
       };
     }
 
@@ -306,19 +351,17 @@ function Canvas({ computeScore, desiredScore }) {
     }
 
     function drawMouseIndicator() {
-      if (mouseHovering) {
-        ctx.fillStyle = "black";
-        ctx.moveTo(mousePos.x, mousePos.y);
-        ctx.arc(mousePos.x, mousePos.y, 8, 0, 2 * Math.PI);
-        ctx.fill();
+      ctx.fillStyle = "black";
+      ctx.moveTo(mousePos.x, mousePos.y);
+      ctx.arc(mousePos.x, mousePos.y, 8, 0, 2 * Math.PI);
+      ctx.fill();
 
-        const coordinate = pixelToWorld(mousePos.x, mousePos.y);
-        const score = computeScore(coordinate.x, coordinate.y);
-        ctx.textAlign = "center";
-        ctx.font = `24px Arial`;
-        ctx.fillText(`(${round(coordinate.x)}%, ${round(coordinate.y)}%)`, mousePos.x, mousePos.y - 50);
-        ctx.fillText(`Score: ${round(score)}%`, mousePos.x, mousePos.y - 25);
-      }
+      const coordinate = pixelToWorld(mousePos.x, mousePos.y);
+      const score = computeScore(coordinate.x, coordinate.y);
+      ctx.textAlign = "center";
+      ctx.font = `24px Arial`;
+      ctx.fillText(`(${round(coordinate.x)}%, ${round(coordinate.y)}%)`, mousePos.x, mousePos.y - 50);
+      ctx.fillText(`Score: ${round(score)}%`, mousePos.x, mousePos.y - 25);
     }
 
     // Clear canvas
@@ -331,11 +374,17 @@ function Canvas({ computeScore, desiredScore }) {
     drawMouseIndicator();
 
     return () => {
-      canvas.removeEventListener("mousemove", mouseMoveHandler);
-      canvas.removeEventListener("mouseover", mouseOverHandler);
-      canvas.removeEventListener("mouseout", mouseOutHandler);
+      if (isMobile) {
+        canvas.removeEventListener("touchmove", touchMoveHandler);
+        canvas.removeEventListener("touchstart", touchDownHandler);
+        canvas.removeEventListener("touchend", mouseUpHandler);
+      } else {
+        canvas.removeEventListener("mousemove", mouseMoveHandler);
+        canvas.removeEventListener("mousedown", mouseDownHandler);
+        canvas.removeEventListener("mouseup", mouseUpHandler);
+      }
     };
-  }, [bottomLeftPos, worldSize, mouseHovering, mousePos, computeScore, desiredScore]);
+  }, [bottomLeftPos, worldSize, mousePos, mouseDragStart, mouseDragging, computeScore, desiredScore]);
 
   return <canvas ref={ref}>Canvas is not supported</canvas>;
 }
