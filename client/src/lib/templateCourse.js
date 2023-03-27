@@ -9,13 +9,13 @@ const templateCourse = {
     name: "Root",
     weight: 100,
     children: [
-      { name: "Homework", weight: 50, score: null },
+      { name: "Homework", weight: 50, pointsNum: null },
       {
         name: "Midterm",
         weight: 25,
-        score: null,
+        pointsNum: null,
       },
-      { name: "Final", weight: 25, score: null },
+      { name: "Final", weight: 25, pointsNum: null },
     ],
   },
 };
