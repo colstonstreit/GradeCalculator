@@ -91,7 +91,7 @@ function calculateScore(categoryObj, doCap = true, env = {}) {
 
     const children =
       obj.dropCount !== undefined && obj.dropCount > 0
-        ? markChildrenToBeDropped(obj.children, obj.dropCount).filter((c) => !c.isDropped)
+        ? markChildrenToBeDropped(obj.children, obj.dropCount, doCap, env).filter((c) => !c.isDropped)
         : obj.children;
 
     for (let child of children) {
@@ -150,9 +150,9 @@ function round(number, decimals = 2) {
   return Math.round(number * 10 ** decimals) / 10 ** decimals;
 }
 
-function markChildrenToBeDropped(childrenArray, numToDrop) {
+function markChildrenToBeDropped(childrenArray, numToDrop, doCap = true, env = {}) {
   const scored = childrenArray
-    .map((c, idx) => ({ ...c, score: calculateScore(c), idx }))
+    .map((c, idx) => ({ ...c, score: calculateScore(c, doCap, env), idx }))
     .filter((c) => !c.isBonus && c.weight !== null && c.score !== null);
 
   const sorted = scored.sort((left, right) => left.score - right.score);
