@@ -326,8 +326,6 @@ function Canvas({ computeScore, desiredScore }) {
       const firstLeft = Math.round((actualBottomLeftPos.x + xGap / 2) / xGap) * xGap;
       const firstBottom = Math.round((actualBottomLeftPos.y + yGap / 2) / yGap) * yGap;
 
-      console.log(firstLeft, firstBottom);
-
       ctx.fillStyle = labelColor;
       ctx.strokeStyle = axisColor;
       ctx.textAlign = "center";
