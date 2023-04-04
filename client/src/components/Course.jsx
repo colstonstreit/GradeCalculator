@@ -317,38 +317,45 @@ function Canvas({ computeScore, desiredScore }) {
 
     function drawGrid() {
       const axisColor = getColor(255, 255, 255).toString();
-      const gridColor = getColor(128, 128, 128).toString();
+      const labelColor = getColor(0, 0, 0).toString();
 
-      // Draw Grid Lines
-      ctx.strokeStyle = gridColor;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      for (let i = 10; i <= 90; i += 10) {
-        const { x, y } = worldToPixel(i, i);
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, height);
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
-      }
-      ctx.stroke();
-      ctx.closePath();
+      const gaps = [100, 50, 20, 10, 5, 2, 1, 0.5, 0.1, 0.05, 0.01];
+      const xGap = gaps.findLast((gap) => gap >= worldSize.width / 8);
+      const yGap = gaps.findLast((gap) => gap >= worldSize.height / 8);
 
-      // Draw axes
-      ctx.beginPath();
+      const firstLeft = Math.round((actualBottomLeftPos.x + xGap / 2) / xGap) * xGap;
+      const firstBottom = Math.round((actualBottomLeftPos.y + yGap / 2) / yGap) * yGap;
+
+      console.log(firstLeft, firstBottom);
+
+      ctx.fillStyle = labelColor;
       ctx.strokeStyle = axisColor;
-      ctx.lineWidth = 4;
-      const origin = worldToPixel(0, 0);
-      const hundred = worldToPixel(100, 100);
-      ctx.moveTo(origin.x, 0);
-      ctx.lineTo(origin.x, height);
-      ctx.moveTo(0, origin.y);
-      ctx.lineTo(width, origin.y);
-      ctx.moveTo(hundred.x, 0);
-      ctx.lineTo(hundred.x, height);
-      ctx.moveTo(0, hundred.y);
-      ctx.lineTo(width, hundred.y);
-      ctx.stroke();
-      ctx.closePath();
+      ctx.textAlign = "center";
+      ctx.font = `bold 16px Arial`;
+
+      // Draw vertical lines
+      for (let x = firstLeft; x <= actualBottomLeftPos.x + worldSize.width; x += xGap) {
+        ctx.lineWidth = Math.abs(x) === 0 || x === 100 ? 4 : 1;
+        const { x: xPixel, y: yPixel } = worldToPixel(x, firstBottom);
+        ctx.beginPath();
+        ctx.moveTo(xPixel, 0);
+        ctx.lineTo(xPixel, height);
+        ctx.stroke();
+        ctx.closePath();
+        if (x !== firstLeft && Math.abs(x) !== 0 && x !== 100) ctx.fillText(`${x}`, xPixel, yPixel - 10);
+      }
+
+      // Draw horizontal lines
+      for (let y = firstBottom; y <= actualBottomLeftPos.y + worldSize.height; y += yGap) {
+        ctx.lineWidth = Math.abs(y) === 0 || y === 100 ? 4 : 1;
+        const { x: xPixel, y: yPixel } = worldToPixel(firstLeft, y);
+        ctx.beginPath();
+        ctx.moveTo(0, yPixel);
+        ctx.lineTo(width, yPixel);
+        ctx.stroke();
+        ctx.closePath();
+        if (y !== firstBottom && Math.abs(y) !== 0 && y !== 100) ctx.fillText(`${y}`, xPixel + 25, yPixel - 5);
+      }
     }
 
     function drawMouseIndicator() {
@@ -360,7 +367,7 @@ function Canvas({ computeScore, desiredScore }) {
       const coordinate = pixelToWorld(mousePos.x, mousePos.y);
       const score = computeScore(coordinate.x, coordinate.y);
       ctx.textAlign = "center";
-      ctx.font = `24px Arial`;
+      ctx.font = `bold 24px Arial`;
       ctx.fillText(`(${round(coordinate.x)}%, ${round(coordinate.y)}%)`, mousePos.x, mousePos.y - 50);
       ctx.fillText(`Score: ${round(score)}%`, mousePos.x, mousePos.y - 25);
     }
@@ -399,8 +406,15 @@ function ScoreVisualization({ desiredScore, gradeData }) {
   );
 
   useEffect(() => {
-    setUnknownX(unknowns[0] ?? null);
-    setUnknownY(unknowns[1] ?? null);
+    setUnknownX((prevX) => {
+      if (unknowns.includes(prevX)) return prevX;
+      return unknowns.find((u) => u !== unknownY) ?? null;
+    });
+    setUnknownY((prevY) => {
+      if (unknowns.includes(prevY)) return prevY;
+      return unknowns.find((u) => u !== unknownX) ?? null;
+    });
+
     setEnvSliderValues((prev) => {
       let sliderValues = unknowns.reduce((total, current) => ({ ...total, [current]: 80 }), {});
       for (const key of Object.keys(sliderValues)) {
@@ -410,7 +424,7 @@ function ScoreVisualization({ desiredScore, gradeData }) {
       }
       return sliderValues;
     });
-  }, [unknowns]);
+  }, [unknowns, unknownX, unknownY]);
 
   function swapAxes() {
     const temp = unknownX;
@@ -472,10 +486,10 @@ function ScoreVisualization({ desiredScore, gradeData }) {
                   min={0}
                   max={100}
                   step={1}
-                  value={envSliderValues[u] ?? 80}
+                  value={envSliderValues[u] || 80}
                   onChange={(e) => setEnvSliderValues((prev) => ({ ...prev, [u]: parseFloat(e.target.value) }))}
                 />{" "}
-                <p>{round(envSliderValues[u])}</p>
+                <p>{round(envSliderValues[u] || 80)}</p>
               </div>
             ))}
         </div>
