@@ -329,7 +329,7 @@ function Canvas({ computeScore, desiredScore }) {
       ctx.fillStyle = labelColor;
       ctx.strokeStyle = axisColor;
       ctx.textAlign = "center";
-      ctx.font = `bold 16px Arial`;
+      ctx.font = `bold 20px Arial`;
 
       // Draw vertical lines
       for (let x = firstLeft; x <= actualBottomLeftPos.x + worldSize.width; x += xGap) {
@@ -392,7 +392,19 @@ function Canvas({ computeScore, desiredScore }) {
     };
   }, [bottomLeftPos, worldSize, mousePos, mouseDragStart, mouseDragging, computeScore, desiredScore]);
 
-  return <canvas ref={ref}>Canvas is not supported</canvas>;
+  return (
+    <div className="canvasContainer">
+      <canvas ref={ref}>Canvas is not supported</canvas>
+      <button
+        onClick={() => {
+          setBottomLeftPos({ x: -10, y: -10 });
+          setWorldSize({ width: 120, height: 120 });
+        }}
+      >
+        Reset
+      </button>
+    </div>
+  );
 }
 
 function ScoreVisualization({ desiredScore, gradeData }) {

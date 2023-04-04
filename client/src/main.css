@@ -9,6 +9,7 @@
 
 button {
   cursor: pointer;
+  padding: 0.1rem 0.5rem;
 }
 
 form {
@@ -300,10 +301,24 @@ li {
   width: 100%;
 }
 
-.visualization canvas {
+.visualization .canvasContainer {
   width: 100%;
-  border: 1px solid black;
+  height: fit-content;
+  position: relative;
+}
+
+.visualization .canvasContainer canvas {
+  position: relative;
+  display: block;
+  width: 100%;
   aspect-ratio: 16/9;
+  border: 1px solid black;
+}
+
+.visualization .canvasContainer button {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
 }
 
 .visualization .scoreSliders {
