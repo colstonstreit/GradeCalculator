@@ -195,6 +195,32 @@ function Canvas({ computeScore, desiredScore }) {
     const { width, height } = canvas;
     const imgData = ctx.createImageData(width, height);
 
+    let actualBottomLeftPos = bottomLeftPos;
+    if (mouseDragging) {
+      const mouseDiffX = (-(mousePos.x - mouseDragStart.x) * worldSize.width) / width;
+      const mouseDiffY = ((mousePos.y - mouseDragStart.y) * worldSize.height) / height;
+      actualBottomLeftPos = {
+        x: bottomLeftPos.x + mouseDiffX,
+        y: bottomLeftPos.y + mouseDiffY,
+      };
+    }
+
+    function worldToPixel(x, y) {
+      return {
+        x: Math.floor(((x - actualBottomLeftPos.x) * width) / worldSize.width),
+        y: height - Math.ceil(((y - actualBottomLeftPos.y) * height) / worldSize.height),
+      };
+    }
+
+    function pixelToWorld(x, y) {
+      const centerX = x + 0.5,
+        centerY = y + 0.5;
+      return {
+        x: actualBottomLeftPos.x + (centerX / width) * worldSize.width,
+        y: actualBottomLeftPos.y + (1 - centerY / height) * worldSize.height,
+      };
+    }
+
     function mouseMoveHandler(e) {
       const rect = e.target.getBoundingClientRect();
       const { devicePixelRatio: ratio = 1 } = window;
@@ -238,6 +264,31 @@ function Canvas({ computeScore, desiredScore }) {
       }));
     }
 
+    function mouseWheelHandler(e) {
+      e.preventDefault();
+
+      const scale = 1 + e.deltaY * 0.005;
+      const newWorldSize = {
+        width: Math.max(0.05, Math.min(1000, worldSize.width * scale)),
+        height: Math.max(0.05, Math.min(1000, worldSize.height * scale)),
+      };
+
+      const relativeMousePos = {
+        x: mousePos.x / width,
+        y: mousePos.y / height,
+      };
+
+      const mousePosInWorld = pixelToWorld(mousePos.x, mousePos.y);
+
+      const newBottomLeftPos = {
+        x: mousePosInWorld.x - relativeMousePos.x * newWorldSize.width,
+        y: mousePosInWorld.y - (1 - relativeMousePos.y) * newWorldSize.height,
+      };
+
+      setWorldSize(newWorldSize);
+      setBottomLeftPos(newBottomLeftPos);
+    }
+
     const isMobile = window.matchMedia("only screen and (max-width: 480px)").matches;
 
     if (isMobile) {
@@ -248,32 +299,7 @@ function Canvas({ computeScore, desiredScore }) {
       canvas.addEventListener("mousemove", mouseMoveHandler);
       canvas.addEventListener("mousedown", mouseDownHandler);
       canvas.addEventListener("mouseup", mouseUpHandler);
-    }
-
-    let actualBottomLeftPos = bottomLeftPos;
-    if (mouseDragging) {
-      const mouseDiffX = (-(mousePos.x - mouseDragStart.x) * worldSize.width) / width;
-      const mouseDiffY = ((mousePos.y - mouseDragStart.y) * worldSize.height) / height;
-      actualBottomLeftPos = {
-        x: bottomLeftPos.x + mouseDiffX,
-        y: bottomLeftPos.y + mouseDiffY,
-      };
-    }
-
-    function worldToPixel(x, y) {
-      return {
-        x: Math.floor(((x - actualBottomLeftPos.x) * width) / worldSize.width),
-        y: height - Math.ceil(((y - actualBottomLeftPos.y) * height) / worldSize.height),
-      };
-    }
-
-    function pixelToWorld(x, y) {
-      const centerX = x + 0.5,
-        centerY = y + 0.5;
-      return {
-        x: actualBottomLeftPos.x + (centerX / width) * worldSize.width,
-        y: actualBottomLeftPos.y + (1 - centerY / height) * worldSize.height,
-      };
+      canvas.addEventListener("wheel", mouseWheelHandler);
     }
 
     function getCutoffBinarySearch(y) {
@@ -320,8 +346,8 @@ function Canvas({ computeScore, desiredScore }) {
       const labelColor = getColor(0, 0, 0).toString();
 
       const gaps = [100, 50, 20, 10, 5, 2, 1, 0.5, 0.1, 0.05, 0.01];
-      const xGap = gaps.findLast((gap) => gap >= worldSize.width / 8);
-      const yGap = gaps.findLast((gap) => gap >= worldSize.height / 8);
+      const xGap = gaps.findLast((gap) => gap >= worldSize.width / 10);
+      const yGap = gaps.findLast((gap) => gap >= worldSize.height / 10);
 
       const firstLeft = Math.round((actualBottomLeftPos.x + xGap / 2) / xGap) * xGap;
       const firstBottom = Math.round((actualBottomLeftPos.y + yGap / 2) / yGap) * yGap;
@@ -340,7 +366,7 @@ function Canvas({ computeScore, desiredScore }) {
         ctx.lineTo(xPixel, height);
         ctx.stroke();
         ctx.closePath();
-        if (x !== firstLeft && Math.abs(x) !== 0 && x !== 100) ctx.fillText(`${x}`, xPixel, yPixel - 10);
+        if (x !== firstLeft && Math.abs(x) !== 0 && x !== 100) ctx.fillText(`${round(x)}`, xPixel, yPixel - 10);
       }
 
       // Draw horizontal lines
@@ -352,7 +378,7 @@ function Canvas({ computeScore, desiredScore }) {
         ctx.lineTo(width, yPixel);
         ctx.stroke();
         ctx.closePath();
-        if (y !== firstBottom && Math.abs(y) !== 0 && y !== 100) ctx.fillText(`${y}`, xPixel + 25, yPixel - 5);
+        if (y !== firstBottom && Math.abs(y) !== 0 && y !== 100) ctx.fillText(`${round(y)}`, xPixel + 25, yPixel - 5);
       }
     }
 
@@ -388,6 +414,7 @@ function Canvas({ computeScore, desiredScore }) {
         canvas.removeEventListener("mousemove", mouseMoveHandler);
         canvas.removeEventListener("mousedown", mouseDownHandler);
         canvas.removeEventListener("mouseup", mouseUpHandler);
+        canvas.removeEventListener("wheel", mouseWheelHandler);
       }
     };
   }, [bottomLeftPos, worldSize, mousePos, mouseDragStart, mouseDragging, computeScore, desiredScore]);
