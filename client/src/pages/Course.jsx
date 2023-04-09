@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useNavigate, useParams } from "react-router-dom";
 import * as ArrayUtil from "../lib/arrayUtil";
 import StorageAPI from "../lib/storageAPI";
-import AuthenticatedPage from "./AuthenticatedPage";
-import { DeleteIcon, DownIcon, PlusIcon, SettingsIcon, UpIcon } from "./Icons";
+import AuthenticatedPage from "../components/AuthenticatedPage";
+import { DeleteIcon, DownIcon, PlusIcon, SettingsIcon, UpIcon } from "../components/Icons";
 
 const numRegex = /^([0-9]+((\.)|(\.[0-9]{0,3}))?)?$/;
 const alphaNumRegex = /^([0-9a-zA-z ]){0,20}$/;

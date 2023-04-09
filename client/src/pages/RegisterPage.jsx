@@ -17,7 +17,10 @@ export default function RegisterPage() {
       username: username.value,
       password: password.value,
     })
-      .then(() => navigate("/courses"))
+      .then(() => {
+        navigate("/courses");
+        navigate(0);
+      })
       .catch(({ status, error }) => {
         if (status >= 500) {
           alert("There seems to be an error connecting to the server. In the meantime, feel free to work offline!");

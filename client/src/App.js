@@ -1,4 +1,4 @@
-import "./main.css";
+import "./global.css";
 
 import React from "react";
 
@@ -7,11 +7,11 @@ import { Route, Routes, Navigate } from "react-router-dom";
 
 // We import all the components we need in our app
 import NavBar from "./components/NavBar";
-import LandingPage from "./components/LandingPage";
-import LoginPage from "./components/LoginPage";
-import RegisterPage from "./components/RegisterPage";
-import CourseList from "./components/CourseList";
-import Course from "./components/Course";
+import LandingPage from "./pages/LandingPage";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import CourseList from "./pages/CourseList";
+import Course from "./pages/Course";
 import useInitialLoginStatus from "./hooks/useInitialLoginStatus";
 
 export default function App() {
