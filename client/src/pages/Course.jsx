@@ -4,7 +4,6 @@ import * as ArrayUtil from "../lib/arrayUtil";
 import StorageAPI from "../lib/storageAPI";
 import AuthenticatedPage from "../components/AuthenticatedPage";
 import { DeleteIcon, DownIcon, PlusIcon, SettingsIcon, UpIcon } from "../components/Icons";
-import { SmartInput } from "../components/SmartInput";
 import {
   extractUnknowns,
   calculateScore,
@@ -13,6 +12,8 @@ import {
   addIDs,
   cleanUpBeforeSaving,
 } from "../lib/scoreUtil";
+
+import styles from "../styles/Course.module.css";
 
 export const numRegex = /^([0-9]+((\.)|(\.[0-9]{0,3}))?)?$/;
 const alphaNumRegex = /^([0-9a-zA-z ]){0,20}$/;
@@ -26,6 +27,44 @@ const ChildrenWeightModes = Object.freeze({
 
 export function round(number, decimals = 2) {
   return Math.round(number * 10 ** decimals) / 10 ** decimals;
+}
+
+export function SmartInput({ regex, numeric, initValue = "", handleUpdate, className = "", ...rest }) {
+  const [value, setValue] = useState(initValue);
+
+  useEffect(() => setValue(initValue), [initValue]);
+
+  function onUpdate(e) {
+    if (regex.test(e.target.value)) {
+      setValue(e.target.value);
+      if (numeric) {
+        if (
+          handleUpdate(!isNaN(e.target.value) && e.target.value !== "" ? parseFloat(e.target.value) : null) === false
+        ) {
+          setValue((oldVal) => value);
+        }
+      } else {
+        if (handleUpdate(e.target.value) === false) {
+          setValue((oldVal) => value);
+        }
+      }
+    }
+  }
+
+  return (
+    <input
+      className={`${styles.smartInput} ${className}`}
+      type="text"
+      value={value ?? ""}
+      onChange={onUpdate}
+      onBlur={(e) => {
+        e.target.value = e.target.value.trim();
+        onUpdate(e);
+      }}
+      maxLength={regex === numRegex ? 3 : Infinity}
+      {...rest}
+    />
+  );
 }
 
 function Canvas({ computeScore, desiredScore }) {
@@ -279,7 +318,7 @@ function Canvas({ computeScore, desiredScore }) {
   }, [bottomLeftPos, worldSize, mousePos, mouseDragStart, mouseDragging, computeScore, desiredScore]);
 
   return (
-    <div className="canvasContainer">
+    <div className={`${styles.canvasContainer}`}>
       <canvas ref={ref}>Canvas is not supported</canvas>
       <button
         onClick={() => {
@@ -337,10 +376,10 @@ function ScoreVisualization({ desiredScore, gradeData }) {
 
   return (
     <>
-      <div className="visualization">
+      <div className={`${styles.visualization}`}>
         <h2>What If?</h2>
         <Canvas computeScore={computeScore} desiredScore={desiredScore} />
-        <div className="axisVariables">
+        <div className={`${styles.axisVariables}`}>
           <p>
             X Axis:{" "}
             <select value={unknownX ?? ""} onChange={(e) => setUnknownX(e.target.value)}>
@@ -371,12 +410,12 @@ function ScoreVisualization({ desiredScore, gradeData }) {
             </select>
           </p>
         </div>
-        <div className="scoreSliders">
+        <div className={`${styles.scoreSliders}`}>
           {unknowns
             .filter((v) => v !== unknownX && v !== unknownY)
             .map((u) => (
-              <div className="slider" key={u}>
-                <p className="name">{u}: </p>
+              <div className={`${styles.slider}`} key={u}>
+                <p className={`${styles.name}`}>{u}: </p>
                 <input
                   type="range"
                   min={0}
@@ -514,7 +553,7 @@ function Category({
   useEffect(() => {
     if (settingsNeedUpdated)
       cbSetSettingsMenu(
-        <div className="settingsMenu" onClick={(e) => e.stopPropagation()}>
+        <div className={`${styles.settingsMenu}`} onClick={(e) => e.stopPropagation()}>
           <h3>{name} Settings</h3>
           <div>
             <button
@@ -662,7 +701,7 @@ function Category({
     <>
       {!isRoot && (
         <tr style={backColorStyle}>
-          <td className="gradeName">
+          <td className={`${styles.gradeName}`}>
             <SmartInput
               initValue={name}
               regex={alphaNumRegex}
@@ -670,9 +709,9 @@ function Category({
               style={{ textDecoration: isDropped ? "line-through" : "none" }}
             />
           </td>
-          <td className="gradeWeight">
+          <td className={`${styles.gradeWeight}`}>
             <SmartInput
-              className="weight"
+              className={`${styles.weight}`}
               disabled={
                 (weightMode === ChildrenWeightModes.POINT_BASED && isLeaf) ||
                 (weightMode === ChildrenWeightModes.FORCED_EQUAL && !isBonus)
@@ -686,11 +725,11 @@ function Category({
               style={{ color: isBonus ? "lime" : "inherit" }}
             />
           </td>
-          <td className="gradePoints">
+          <td className={`${styles.gradePoints}`}>
             {isLeaf ? (
               <>
                 <SmartInput
-                  className="score"
+                  className={`${styles.score}`}
                   regex={numRegex}
                   numeric
                   initValue={pointsNum}
@@ -698,7 +737,7 @@ function Category({
                 />
                 /
                 <SmartInput
-                  className="score"
+                  className={`${styles.score}`}
                   regex={numRegex}
                   numeric
                   initValue={pointsDenom}
@@ -717,24 +756,43 @@ function Category({
               <div style={{ fontWeight: "bold" }}>{`${pointsText} / ${weight ?? 0}`}</div>
             )}
           </td>
-          <td className="gradeScore">{scoreText}</td>
+          <td className={`${styles.gradeScore}`}>{scoreText}</td>
           <td>
-            <div className="gradeRowButtons">
-              <div className="upDownButtons">
-                <button className="iconButton" title="Move Up" disabled={!canMoveUp} onClick={() => cbMoveSelf(-1)}>
+            <div className={`${styles.gradeRowButtons}`}>
+              <div className={`${styles.upDownButtons}`}>
+                <button
+                  className={`${styles.iconButton}`}
+                  title="Move Up"
+                  disabled={!canMoveUp}
+                  onClick={() => cbMoveSelf(-1)}
+                >
                   <UpIcon />
                 </button>
-                <button className="iconButton" title="Move Down" disabled={!canMoveDown} onClick={() => cbMoveSelf(1)}>
+                <button
+                  className={`${styles.iconButton}`}
+                  title="Move Down"
+                  disabled={!canMoveDown}
+                  onClick={() => cbMoveSelf(1)}
+                >
                   <DownIcon />
                 </button>
               </div>
-              <button className="iconButton" title="Add Category" onClick={cbAddAfterSelf}>
+              <button className={`${styles.iconButton}`} title="Add Category" onClick={cbAddAfterSelf}>
                 <PlusIcon />
               </button>
-              <button className="iconButton" title="Delete" disabled={!canDeleteSelf} onClick={() => cbDeleteSelf()}>
+              <button
+                className={`${styles.iconButton}`}
+                title="Delete"
+                disabled={!canDeleteSelf}
+                onClick={() => cbDeleteSelf()}
+              >
                 <DeleteIcon />
               </button>
-              <button className="iconButton" title="Open Settings" onClick={() => setSettingsNeedUpdated(true)}>
+              <button
+                className={`${styles.iconButton}`}
+                title="Open Settings"
+                onClick={() => setSettingsNeedUpdated(true)}
+              >
                 <SettingsIcon />
               </button>
             </div>
@@ -827,11 +885,11 @@ export default function Course({ loggedIn }) {
 
   return (
     <AuthenticatedPage initiallyLoggedIn={loggedIn}>
-      <div className="courseContainer">
+      <div className={`${styles.courseContainer}`}>
         <h1>
           Course Title:{" "}
           <input
-            className="courseTitle"
+            className={`${styles.courseTitle}`}
             type="text"
             value={currTitle}
             onChange={(e) => setCurrTitle(e.target.value)}
@@ -839,7 +897,7 @@ export default function Course({ loggedIn }) {
           />
         </h1>
         <h2
-          className="courseScore"
+          className={`${styles.courseScore}`}
           onClick={() => setGradeData((data) => ({ ...data, capped: !data.capped }))}
           style={{ cursor: "pointer", display: "inline-block" }}
         >
@@ -847,7 +905,7 @@ export default function Course({ loggedIn }) {
           <span>{scoreTextIgnoreCap !== null && scoreTextIgnoreCap > 100 && gradeData.capped ? "(Capped)" : ""}</span>
         </h2>
 
-        <table className="courseTable">
+        <table className={`${styles.courseTable}`}>
           <thead>
             <tr>
               <th>Name</th>
@@ -869,8 +927,8 @@ export default function Course({ loggedIn }) {
           </tbody>
         </table>
       </div>
-      <div className="scoreButtonContainer">
-        <div className="desiredScore">
+      <div className={`${styles.scoreButtonContainer}`}>
+        <div className={`${styles.desiredScore}`}>
           Desired Score:{" "}
           <input
             type="number"
@@ -880,7 +938,7 @@ export default function Course({ loggedIn }) {
             }}
           />
         </div>
-        <div className="manageButtons">
+        <div className={`${styles.manageButtons}`}>
           <button
             onClick={() => {
               saveCourse(title, {
