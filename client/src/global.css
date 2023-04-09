@@ -244,6 +244,10 @@ input[type="text"].transparent {
   background-color: inherit;
 }
 
+input[type="text"].transparent::placeholder {
+  color: rgba(20, 20, 20, 0.6);
+}
+
 input[type="text"].weight {
   width: 4ch;
 }

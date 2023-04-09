@@ -4,8 +4,17 @@ import * as ArrayUtil from "../lib/arrayUtil";
 import StorageAPI from "../lib/storageAPI";
 import AuthenticatedPage from "../components/AuthenticatedPage";
 import { DeleteIcon, DownIcon, PlusIcon, SettingsIcon, UpIcon } from "../components/Icons";
+import { SmartInput } from "../components/SmartInput";
+import {
+  extractUnknowns,
+  calculateScore,
+  newCategory,
+  markChildrenToBeDropped,
+  addIDs,
+  cleanUpBeforeSaving,
+} from "../lib/scoreUtil";
 
-const numRegex = /^([0-9]+((\.)|(\.[0-9]{0,3}))?)?$/;
+export const numRegex = /^([0-9]+((\.)|(\.[0-9]{0,3}))?)?$/;
 const alphaNumRegex = /^([0-9a-zA-z ]){0,20}$/;
 const depthColors = ["#777", "#AAA", "#DDD", "#FFF"];
 
@@ -15,156 +24,8 @@ const ChildrenWeightModes = Object.freeze({
   POINT_BASED: "point-based",
 });
 
-function SmartInput({ regex, numeric, initValue = "", handleUpdate, className = "", ...rest }) {
-  const [value, setValue] = useState(initValue);
-
-  useEffect(() => setValue(initValue), [initValue]);
-
-  function onUpdate(e) {
-    if (regex.test(e.target.value)) {
-      setValue(e.target.value);
-      if (numeric) {
-        if (
-          handleUpdate(!isNaN(e.target.value) && e.target.value !== "" ? parseFloat(e.target.value) : null) === false
-        ) {
-          setValue((oldVal) => value);
-        }
-      } else {
-        if (handleUpdate(e.target.value) === false) {
-          setValue((oldVal) => value);
-        }
-      }
-    }
-  }
-
-  return (
-    <input
-      className={`transparent ${className}`}
-      type="text"
-      value={value ?? ""}
-      onChange={onUpdate}
-      onBlur={(e) => {
-        e.target.value = e.target.value.trim();
-        onUpdate(e);
-      }}
-      maxLength={regex === numRegex ? 3 : Infinity}
-      {...rest}
-    />
-  );
-}
-
-let lastID = 1;
-function newID() {
-  return lastID++;
-}
-function newCategory(
-  initial = {
-    name: "",
-    weight: 1,
-    pointsNum: null,
-    pointsDenom: 100,
-  }
-) {
-  const id = newID();
-  return {
-    ...initial,
-    id: id,
-  };
-}
-
-function calculateScore(categoryObj, doCap = true, env = {}) {
-  function calculateScoreHelper(obj, doCap, env) {
-    const { pointsNum = obj.score ?? null, pointsDenom = 100 } = obj;
-    const score = pointsNum !== null ? (pointsNum / pointsDenom) * 100 : null;
-
-    // If leaf node, just return score
-    if (obj.children === undefined) {
-      if (score === null && obj.name in env) {
-        return env[obj.name];
-      }
-      return score;
-    }
-
-    // Otherwise, must compute score from children
-    let totalWeight = 0;
-    let totalSum = 0;
-
-    const children =
-      obj.dropCount !== undefined && obj.dropCount > 0
-        ? markChildrenToBeDropped(obj.children, obj.dropCount, doCap, env).filter((c) => !c.isDropped)
-        : obj.children;
-
-    for (let child of children) {
-      const score = calculateScoreHelper(child, doCap, env);
-      if (score !== null) {
-        if (!child.isBonus) {
-          totalWeight += child.weight;
-        }
-        totalSum += child.weight * score;
-      }
-    }
-    if (totalWeight === 0) return null;
-
-    const computedScore = totalSum / totalWeight;
-    if (obj.capped && computedScore > 100 && doCap) return 100;
-    return computedScore;
-  }
-
-  const rawScore = calculateScoreHelper(categoryObj, doCap, env);
-  if (rawScore === null) return null;
-  if (categoryObj.capped && rawScore > 100 && doCap) return 100;
-  return round(rawScore);
-}
-
-function addIDs(categoryObj) {
-  if (categoryObj.id === undefined) {
-    categoryObj.id = newID();
-  }
-  if (categoryObj.children !== undefined) {
-    categoryObj.children = categoryObj.children.map((child) => addIDs(child));
-  }
-  return categoryObj;
-}
-
-function cleanUpBeforeSaving(categoryObj) {
-  delete categoryObj.id;
-  if (categoryObj.children === undefined) {
-    delete categoryObj.capped;
-    delete categoryObj.dropCount;
-    delete categoryObj.childrenWeightMode;
-    if (categoryObj.pointsDenom === undefined) categoryObj.pointsDenom = 100;
-    categoryObj.pointsNum ??= categoryObj.score ?? null;
-    delete categoryObj.score;
-  } else {
-    delete categoryObj.pointsNum;
-    delete categoryObj.pointsDenom;
-    delete categoryObj.score;
-    categoryObj.children = categoryObj.children.map((child) => cleanUpBeforeSaving(child));
-  }
-  delete categoryObj.isDropped;
-
-  return categoryObj;
-}
-
-function round(number, decimals = 2) {
+export function round(number, decimals = 2) {
   return Math.round(number * 10 ** decimals) / 10 ** decimals;
-}
-
-function markChildrenToBeDropped(childrenArray, numToDrop, doCap = true, env = {}) {
-  const scored = childrenArray
-    .map((c, idx) => ({ ...c, score: calculateScore(c, doCap, env), idx }))
-    .filter((c) => !c.isBonus && c.weight !== null && c.score !== null);
-
-  const sorted = scored.sort((left, right) => left.score - right.score);
-  const idxsToDrop = sorted.filter((c, idx) => idx < numToDrop).map((c) => c.idx);
-
-  return childrenArray.map((c, idx) => ({ ...c, isDropped: idxsToDrop.includes(idx) }));
-}
-
-function extractUnknowns(data) {
-  if (!data.name || !data.weight) return [];
-  if (data.children === undefined) return data.pointsNum === null ? [data.name] : [];
-  return data.children.reduce((total, child) => [...total, ...extractUnknowns(child)], []);
 }
 
 function Canvas({ computeScore, desiredScore }) {
@@ -574,13 +435,13 @@ function Category({
 
   let scoreText = "";
   if (isLeaf) {
-    scoreText = scoreIgnoreCap === null ? "N/A" : `${scoreIgnoreCap}%`;
+    scoreText = scoreIgnoreCap === null ? "N/A" : `${round(scoreIgnoreCap)}%`;
   } else if (scoreIgnoreCap === null) {
     scoreText = "N/A";
   } else if (scoreIgnoreCap > 100) {
-    scoreText = capped ? "100%" : `${scoreIgnoreCap}%`;
+    scoreText = capped ? "100%" : `${round(scoreIgnoreCap)}%`;
   } else {
-    scoreText = `${scoreIgnoreCap}%`;
+    scoreText = `${round(scoreIgnoreCap)}%`;
   }
 
   let pointsText = pointsNum;
@@ -843,7 +704,7 @@ function Category({
                   initValue={pointsDenom}
                   placeholder={100}
                   handleUpdate={(newVal) => {
-                    const newPointsDenom = newVal <= 0 ? 100 : newVal;
+                    const newPointsDenom = newVal <= 0 && newVal !== null ? 100 : newVal;
                     if (weightMode === ChildrenWeightModes.POINT_BASED) {
                       handleFieldsChange({ pointsDenom: newPointsDenom, weight: newPointsDenom });
                     } else {
@@ -958,7 +819,11 @@ export default function Course({ loggedIn }) {
 
   const scoreTextIgnoreCap = calculateScore(gradeData, false);
   const scoreText =
-    scoreTextIgnoreCap === null ? "N/A" : scoreTextIgnoreCap > 100 && gradeData.capped ? 100 : scoreTextIgnoreCap;
+    scoreTextIgnoreCap === null
+      ? "N/A"
+      : scoreTextIgnoreCap > 100 && gradeData.capped
+      ? 100
+      : round(scoreTextIgnoreCap);
 
   return (
     <AuthenticatedPage initiallyLoggedIn={loggedIn}>
