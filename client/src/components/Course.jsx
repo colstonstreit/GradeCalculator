@@ -213,11 +213,9 @@ function Canvas({ computeScore, desiredScore }) {
     }
 
     function pixelToWorld(x, y) {
-      const centerX = x + 0.5,
-        centerY = y + 0.5;
       return {
-        x: actualBottomLeftPos.x + (centerX / width) * worldSize.width,
-        y: actualBottomLeftPos.y + (1 - centerY / height) * worldSize.height,
+        x: actualBottomLeftPos.x + (x / width) * worldSize.width,
+        y: actualBottomLeftPos.y + (1 - y / height) * worldSize.height,
       };
     }
 
