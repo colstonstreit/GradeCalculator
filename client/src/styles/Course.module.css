@@ -1,4 +1,4 @@
-.darkOverlay .settingsMenu {
+.settingsMenu {
   background-color: white;
   padding: 1rem;
   border-radius: 10px;
@@ -6,13 +6,13 @@
   flex-direction: column;
 }
 
-.darkOverlay .settingsMenu > div {
+.settingsMenu > div {
   border: 1px solid black;
   margin: 0;
   padding: 0.5rem;
 }
 
-.darkOverlay .settingsMenu > div button {
+.settingsMenu > div button {
   width: 100%;
   background-color: transparent;
   border: none;

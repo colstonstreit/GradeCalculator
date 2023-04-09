@@ -1,6 +1,10 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import StorageAPI from "../lib/storageAPI";
+import { round } from "../lib/scoreUtil";
+
+import styles from "../styles/CourseList.module.css";
+import { calculateScore, extractUnknowns, extractKnowns } from "../lib/scoreUtil";
 
 export default function CourseList({ loggedIn }) {
   const [courses, setCourses] = useState([]);
@@ -37,13 +41,36 @@ export default function CourseList({ loggedIn }) {
   return (
     <>
       <h1 style={{ textAlign: "center" }}>Your Courses {loggedIn ? "(Online)" : "(Offline)"}</h1>
-      <div className="courseListContainer">
-        {courses.map((courseName, idx) => (
-          <Link key={courseName} to={`/courses/${courseName}`}>
-            {courseName}
-          </Link>
-        ))}
-        <button onClick={addNewCourse}>Add Course</button>
+      <div className={styles.courseListContainer}>
+        {courses.map((course) => {
+          const title = course.title;
+          const currentScore = calculateScore(course.root); // or null
+          const numUnknowns = extractUnknowns(course.root).length;
+          const numKnowns = extractKnowns(course.root).length;
+
+          // Treat null as meeting goal
+          const meetsGoal = (currentScore ?? 999) >= course.desiredScore;
+
+          return (
+            <div key={title} className={styles.courseCard} onClick={() => navigate(`/courses/${title}`)}>
+              <p className={styles.courseTitle}>{title}</p>
+              <div className={styles.courseInfo}>
+                <p title={`Desired Score: ${course.desiredScore}`}>
+                  Current Score:{" "}
+                  <span className={meetsGoal ? styles.goodScore : styles.badScore}>
+                    {`${round(currentScore)}%` || "N/A"}
+                  </span>
+                </p>
+                <p>
+                  {numKnowns} / {numKnowns + numUnknowns} Graded
+                </p>
+              </div>
+            </div>
+          );
+        })}
+        <button className={styles.courseCard} onClick={addNewCourse}>
+          <p className={styles.courseTitle}>Add Course</p>
+        </button>
       </div>
     </>
   );

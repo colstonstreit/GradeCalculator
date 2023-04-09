@@ -17,7 +17,7 @@ courseRouter.get("/", async (req, res) => {
   const db = dbo.getDb();
   const query = { userID: req.user.id };
   const result = await db.collection("Courses").find(query).toArray();
-  res.send(result.map((course) => course.title));
+  res.send(result);
 });
 
 // Add a new course

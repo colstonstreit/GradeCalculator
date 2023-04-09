@@ -110,3 +110,13 @@ export function extractUnknowns(data) {
   if (data.children === undefined) return data.pointsNum === null ? [data.name] : [];
   return data.children.reduce((total, child) => [...total, ...extractUnknowns(child)], []);
 }
+
+export function extractKnowns(data) {
+  if (!data.name || !data.weight) return [];
+  if (data.children === undefined) return data.pointsNum !== null ? [data.name] : [];
+  return data.children.reduce((total, child) => [...total, ...extractKnowns(child)], []);
+}
+
+export function round(number, decimals = 2) {
+  return Math.round(number * 10 ** decimals) / 10 ** decimals;
+}

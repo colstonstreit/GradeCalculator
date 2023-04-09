@@ -46,12 +46,11 @@ function getCourse(title, loggedIn) {
   });
 }
 
-// Get array of course titles
 function getCourses(loggedIn) {
   return new Promise((resolve, reject) => {
     if (!loggedIn) {
       const courses = JSON.parse(localStorage.getItem("courses") ?? "[]");
-      resolve(courses.map((course) => course.title));
+      resolve(courses);
     } else {
       NetworkAPI.get(`/api/courses`)
         .then(({ data: courses }) => resolve(courses))

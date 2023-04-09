@@ -1,0 +1,48 @@
+.courseListContainer {
+  margin-top: 2rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 200px));
+  justify-content: center;
+  align-items: center;
+  gap: 2rem;
+  text-decoration: none;
+}
+
+.courseListContainer .courseCard {
+  display: flex;
+  gap: 1rem;
+  flex-direction: column;
+  width: 200px;
+  height: 300px;
+  background-color: white;
+  border: 1px solid black;
+  box-shadow: 0px 0px 8px 0px black;
+  text-align: center;
+  justify-content: center;
+  align-items: center;
+  color: black;
+  font-family: Arial, Helvetica, sans-serif;
+  transition: top 0.25s;
+  top: 0;
+  position: relative;
+  cursor: pointer;
+}
+
+.courseTitle {
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.goodScore {
+  font-weight: bold;
+  color: rgb(81, 215, 81);
+}
+
+.badScore {
+  font-weight: bold;
+  color: rgb(213, 81, 81);
+}
+
+.courseListContainer .courseCard:hover {
+  top: -1rem;
+}

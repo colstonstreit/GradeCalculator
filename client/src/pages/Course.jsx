@@ -11,6 +11,7 @@ import {
   markChildrenToBeDropped,
   addIDs,
   cleanUpBeforeSaving,
+  round,
 } from "../lib/scoreUtil";
 
 import styles from "../styles/Course.module.css";
@@ -25,11 +26,7 @@ const ChildrenWeightModes = Object.freeze({
   POINT_BASED: "point-based",
 });
 
-export function round(number, decimals = 2) {
-  return Math.round(number * 10 ** decimals) / 10 ** decimals;
-}
-
-export function SmartInput({ regex, numeric, initValue = "", handleUpdate, className = "", ...rest }) {
+function SmartInput({ regex, numeric, initValue = "", handleUpdate, className = "", ...rest }) {
   const [value, setValue] = useState(initValue);
 
   useEffect(() => setValue(initValue), [initValue]);
