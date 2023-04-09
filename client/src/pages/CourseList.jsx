@@ -49,16 +49,16 @@ export default function CourseList({ loggedIn }) {
           const numKnowns = extractKnowns(course.root).length;
 
           // Treat null as meeting goal
-          const meetsGoal = (currentScore ?? 999) >= course.desiredScore;
+          const meetsGoal = currentScore === null || currentScore >= course.desiredScore;
 
           return (
             <div key={title} className={styles.courseCard} onClick={() => navigate(`/courses/${title}`)}>
               <p className={styles.courseTitle}>{title}</p>
               <div className={styles.courseInfo}>
                 <p title={`Desired Score: ${course.desiredScore}`}>
-                  Current Score:{" "}
+                  {numUnknowns > 0 ? "Current" : ""} Score:{" "}
                   <span className={meetsGoal ? styles.goodScore : styles.badScore}>
-                    {`${round(currentScore)}%` || "N/A"}
+                    {numKnowns > 0 ? `${round(currentScore)}%` : "N/A"}
                   </span>
                 </p>
                 <p>
