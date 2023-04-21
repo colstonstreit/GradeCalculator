@@ -64,6 +64,9 @@ function SmartInput({ regex, numeric, initValue = "", handleUpdate, className = 
   );
 }
 
+const minBottomLeftPos = Object.freeze({ x: -10, y: -10 });
+const maxTopRightPos = Object.freeze({ x: 210, y: 210 });
+
 function Canvas({ computeScore, desiredScore }) {
   const ref = useRef(null);
   const [bottomLeftPos, setBottomLeftPos] = useState({ x: -10, y: -10 });
@@ -71,9 +74,6 @@ function Canvas({ computeScore, desiredScore }) {
   const [mousePos, setMousePos] = useState({ x: -2000, y: -2000 });
   const [mouseDragStart, setMouseDragStart] = useState(null);
   const [mouseDragging, setMouseDragging] = useState(false);
-
-  const minBottomLeftPos = { x: -110, y: -110 };
-  const maxTopRightPos = { x: 210, y: 210 };
 
   function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);
@@ -156,15 +156,17 @@ function Canvas({ computeScore, desiredScore }) {
     }
 
     function mouseUpHandler(e) {
+      if (mouseDragStart) {
+        const mouseDiffX = (-(mousePos.x - mouseDragStart.x) * worldSize.width) / width;
+        const mouseDiffY = ((mousePos.y - mouseDragStart.y) * worldSize.height) / height;
+
+        setBottomLeftPos((prev) => ({
+          x: clamp(prev.x + mouseDiffX, minBottomLeftPos.x, maxTopRightPos.x - worldSize.width),
+          y: clamp(prev.y + mouseDiffY, minBottomLeftPos.y, maxTopRightPos.y - worldSize.height),
+        }));
+      }
       setMouseDragging(false);
       setMouseDragStart(null);
-      const mouseDiffX = (-(mousePos.x - mouseDragStart.x) * worldSize.width) / width;
-      const mouseDiffY = ((mousePos.y - mouseDragStart.y) * worldSize.height) / height;
-
-      setBottomLeftPos((prev) => ({
-        x: clamp(prev.x + mouseDiffX, minBottomLeftPos.x, maxTopRightPos.x - worldSize.width),
-        y: clamp(prev.y + mouseDiffY, minBottomLeftPos.y, maxTopRightPos.y - worldSize.height),
-      }));
     }
 
     function mouseOutHandler(e) {
@@ -405,21 +407,21 @@ function ScoreVisualization({ desiredScore, gradeData }) {
   const [unknownX, setUnknownX] = useState(unknowns[0] ?? null);
   const [unknownY, setUnknownY] = useState(unknowns[1] ?? null);
   const [envSliderValues, setEnvSliderValues] = useState(
-    unknowns.reduce((total, current) => ({ ...total, [current]: 80 }), {})
+    unknowns.reduce((total, current) => ({ ...total, [current.name]: 80 }), {})
   );
 
   useEffect(() => {
     setUnknownX((prevX) => {
-      if (unknowns.includes(prevX)) return prevX;
-      return unknowns.find((u) => u !== unknownY) ?? null;
+      if (unknowns.map((u) => u.name).includes(prevX.name)) return prevX;
+      return unknowns.find((u) => u.name !== unknownY.name) ?? null;
     });
     setUnknownY((prevY) => {
-      if (unknowns.includes(prevY)) return prevY;
-      return unknowns.find((u) => u !== unknownX) ?? null;
+      if (unknowns.map((u) => u.name).includes(prevY.name)) return prevY;
+      return unknowns.find((u) => u.name !== unknownX.name) ?? null;
     });
 
     setEnvSliderValues((prev) => {
-      let sliderValues = unknowns.reduce((total, current) => ({ ...total, [current]: 80 }), {});
+      let sliderValues = unknowns.reduce((total, current) => ({ ...total, [current.name]: 80 }), {});
       for (const key of Object.keys(sliderValues)) {
         if (key in prev) {
           sliderValues[key] = prev[key];
@@ -430,15 +432,15 @@ function ScoreVisualization({ desiredScore, gradeData }) {
   }, [unknowns, unknownX, unknownY]);
 
   function swapAxes() {
-    const temp = unknownX;
+    // No need for temp here since changes don't occur until rerender
     setUnknownX(unknownY);
-    setUnknownY(temp);
+    setUnknownY(unknownX);
   }
 
   function computeScore(x, y) {
     const env = { ...envSliderValues };
-    if (unknownX) env[unknownX] = x;
-    if (unknownY) env[unknownY] = y;
+    if (unknownX) env[unknownX.name] = x;
+    if (unknownY) env[unknownY.name] = y;
     return calculateScore(gradeData, true, env);
   }
 
@@ -450,13 +452,16 @@ function ScoreVisualization({ desiredScore, gradeData }) {
         <div className={`${styles.axisVariables}`}>
           <p>
             X Axis:{" "}
-            <select value={unknownX ?? ""} onChange={(e) => setUnknownX(e.target.value)}>
+            <select
+              value={unknownX.name ?? ""}
+              onChange={(e) => setUnknownX(unknowns.find((u) => u.name === e.target.value))}
+            >
               <option value="">----- None -----</option>
               {unknowns
-                .filter((u) => u !== unknownY)
+                .filter((u) => u.name !== unknownY.name)
                 .map((u) => (
-                  <option key={u} value={u}>
-                    {u}
+                  <option key={u.name} value={u.name}>
+                    {u.name}
                   </option>
                 ))}
             </select>
@@ -466,13 +471,16 @@ function ScoreVisualization({ desiredScore, gradeData }) {
           </p>
           <p>
             Y Axis:{" "}
-            <select value={unknownY ?? ""} onChange={(e) => setUnknownY(e.target.value)}>
+            <select
+              value={unknownY.name ?? ""}
+              onChange={(e) => setUnknownY(unknowns.find((u) => u.name === e.target.value))}
+            >
               <option value="">----- None -----</option>
               {unknowns
-                .filter((u) => u !== unknownX)
+                .filter((u) => u.name !== unknownX.name)
                 .map((u) => (
-                  <option key={u} value={u}>
-                    {u}
+                  <option key={u.name} value={u.name}>
+                    {u.name}
                   </option>
                 ))}
             </select>
@@ -480,19 +488,35 @@ function ScoreVisualization({ desiredScore, gradeData }) {
         </div>
         <div className={`${styles.scoreSliders}`}>
           {unknowns
-            .filter((v) => v !== unknownX && v !== unknownY)
+            .filter((v) => v.name !== unknownX.name && v.name !== unknownY.name)
             .map((u) => (
-              <div className={`${styles.slider}`} key={u}>
-                <p className={`${styles.name}`}>{u}: </p>
+              <div className={`${styles.slider}`} key={u.name}>
+                <p className={`${styles.name}`}>{u.name}: </p>
                 <input
                   type="range"
                   min={0}
-                  max={100}
+                  max={u.pointsDenom ?? 100}
                   step={1}
-                  value={envSliderValues[u] || 80}
-                  onChange={(e) => setEnvSliderValues((prev) => ({ ...prev, [u]: parseFloat(e.target.value) }))}
+                  value={Math.min(
+                    u.pointsDenom ?? 100,
+                    envSliderValues[u.name] !== undefined
+                      ? (envSliderValues[u.name] / 100) * (u.pointsDenom ?? 100)
+                      : 0.8 * (u.pointsDenom ?? 100)
+                  )}
+                  onChange={(e) =>
+                    setEnvSliderValues((prev) => ({
+                      ...prev,
+                      [u.name]: (parseFloat(e.target.value) / (u.pointsDenom ?? 100)) * 100,
+                    }))
+                  }
                 />{" "}
-                <p>{round(envSliderValues[u] || 80)}</p>
+                <p>
+                  {round(
+                    envSliderValues[u.name] !== undefined
+                      ? (envSliderValues[u.name] / 100) * (u.pointsDenom ?? 100)
+                      : 0.8 * (u.pointsDenom ?? 100)
+                  )}
+                </p>
               </div>
             ))}
         </div>

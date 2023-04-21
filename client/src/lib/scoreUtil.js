@@ -107,13 +107,13 @@ export function markChildrenToBeDropped(childrenArray, numToDrop, doCap = true, 
 
 export function extractUnknowns(data) {
   if (!data.name || !data.weight) return [];
-  if (data.children === undefined) return data.pointsNum === null ? [data.name] : [];
+  if (data.children === undefined) return data.pointsNum === null ? [data] : [];
   return data.children.reduce((total, child) => [...total, ...extractUnknowns(child)], []);
 }
 
 export function extractKnowns(data) {
   if (!data.name || !data.weight) return [];
-  if (data.children === undefined) return data.pointsNum !== null ? [data.name] : [];
+  if (data.children === undefined) return data.pointsNum !== null ? [data] : [];
   return data.children.reduce((total, child) => [...total, ...extractKnowns(child)], []);
 }
 
