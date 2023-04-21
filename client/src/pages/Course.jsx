@@ -197,7 +197,7 @@ function Canvas({ computeScore, desiredScore }) {
       canvas.addEventListener("wheel", mouseWheelHandler);
     }
 
-    function getCutoffBinarySearch(y) {
+    function getCutoffBinarySearch(y, initLow = 0, initHigh = width - 1) {
       function binarySearch(low, high) {
         if (low >= high) return low;
         const mid = Math.floor((low + high) / 2);
@@ -208,7 +208,7 @@ function Canvas({ computeScore, desiredScore }) {
         }
         return binarySearch(mid + 1, high);
       }
-      return binarySearch(0, width - 1);
+      return binarySearch(initLow, initHigh);
     }
 
     function drawScore() {
@@ -277,6 +277,35 @@ function Canvas({ computeScore, desiredScore }) {
       }
     }
 
+    function getTextDrawPosition(scoreBoxWidth, scoreBoxHeight) {
+      const distFromEdge = 1;
+      const distFromCursor = 20;
+
+      let drawX, drawY;
+
+      if (mousePos.x - scoreBoxWidth / 2 <= distFromEdge) {
+        drawX = mousePos.x + distFromCursor + scoreBoxWidth / 2;
+      } else if (mousePos.x + scoreBoxWidth / 2 >= width - distFromEdge) {
+        drawX = mousePos.x - 2 * distFromCursor - scoreBoxWidth / 2;
+      } else {
+        drawX = mousePos.x;
+      }
+
+      if (
+        drawX !== mousePos.x &&
+        mousePos.y - scoreBoxHeight / 2 > distFromEdge &&
+        mousePos.y + scoreBoxHeight / 2 < height - distFromEdge
+      ) {
+        drawY = mousePos.y;
+      } else if (mousePos.y - distFromCursor - scoreBoxHeight <= distFromEdge) {
+        drawY = mousePos.y + distFromCursor + scoreBoxHeight / 2;
+      } else {
+        drawY = mousePos.y - distFromCursor - scoreBoxHeight / 2;
+      }
+
+      return { drawX, drawY };
+    }
+
     function drawMouseIndicator() {
       ctx.fillStyle = "black";
       ctx.moveTo(mousePos.x, mousePos.y);
@@ -286,9 +315,24 @@ function Canvas({ computeScore, desiredScore }) {
       const coordinate = pixelToWorld(mousePos.x, mousePos.y);
       const score = computeScore(coordinate.x, coordinate.y);
       ctx.textAlign = "center";
-      ctx.font = `bold 24px Arial`;
-      ctx.fillText(`(${round(coordinate.x)}%, ${round(coordinate.y)}%)`, mousePos.x, mousePos.y - 50);
-      ctx.fillText(`Score: ${round(score)}%`, mousePos.x, mousePos.y - 25);
+
+      const fontSize = Math.floor(canvas.getBoundingClientRect().height / 20);
+      ctx.font = `bold ${fontSize}px Arial`;
+      const scoreBoxWidth = 10 * fontSize;
+      const scoreBoxHeight = 3 * fontSize;
+
+      const { drawX, drawY } = getTextDrawPosition(scoreBoxWidth, scoreBoxHeight);
+
+      ctx.fillStyle = getColor(255, 255, 255, 0.7).toString();
+      ctx.fillRect(drawX - scoreBoxWidth / 2, drawY - scoreBoxHeight / 2, scoreBoxWidth, scoreBoxHeight);
+
+      ctx.fillStyle = "black";
+      ctx.strokeStyle = "black";
+
+      ctx.strokeRect(drawX - scoreBoxWidth / 2, drawY - scoreBoxHeight / 2, scoreBoxWidth, scoreBoxHeight);
+
+      ctx.fillText(`(${round(coordinate.x)}%, ${round(coordinate.y)}%)`, drawX, drawY - fontSize / 4);
+      ctx.fillText(`Score: ${round(score)}%`, drawX, drawY + fontSize);
     }
 
     // Clear canvas
