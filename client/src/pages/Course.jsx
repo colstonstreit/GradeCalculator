@@ -177,8 +177,8 @@ function Canvas({ computeScore, desiredScore }) {
       // Scale world size
       const scale = e.deltaY >= 0 ? 1 + e.deltaY * 0.005 : 1 / (1 - e.deltaY * 0.005);
       const newWorldSize = {
-        width: Math.min(Math.max(0.05, worldSize.width * scale), maxTopRightPos.x - minBottomLeftPos.x),
-        height: Math.min(Math.max(0.05, worldSize.height * scale), maxTopRightPos.y - minBottomLeftPos.y),
+        width: Math.min(Math.max(0.5, worldSize.width * scale), maxTopRightPos.x - minBottomLeftPos.x),
+        height: Math.min(Math.max(0.5, worldSize.height * scale), maxTopRightPos.y - minBottomLeftPos.y),
       };
 
       const relativeMousePos = {
