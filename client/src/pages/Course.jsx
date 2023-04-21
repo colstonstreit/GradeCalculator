@@ -402,34 +402,66 @@ function Canvas({ computeScore, desiredScore }) {
   );
 }
 
-function ScoreVisualization({ desiredScore, gradeData }) {
+function ScoreVisualization({ desiredScore, gradeData, whatIfData, setWhatIfData }) {
   const unknowns = useMemo(() => extractUnknowns(gradeData), [gradeData]);
-  const [unknownX, setUnknownX] = useState(unknowns[0] ?? null);
-  const [unknownY, setUnknownY] = useState(unknowns[1] ?? null);
+  const [unknownX, setUnknownX] = useState(null);
+  const [unknownY, setUnknownY] = useState(null);
   const [envSliderValues, setEnvSliderValues] = useState(
     unknowns.reduce((total, current) => ({ ...total, [current.name]: 80 }), {})
   );
+  const [loaded, setLoaded] = useState(false);
 
+  // If whatIfData is given, update unknowns and stuff on load
   useEffect(() => {
-    setUnknownX((prevX) => {
-      if (unknowns.map((u) => u.name).includes(prevX.name)) return prevX;
-      return unknowns.find((u) => u.name !== unknownY.name) ?? null;
-    });
-    setUnknownY((prevY) => {
-      if (unknowns.map((u) => u.name).includes(prevY.name)) return prevY;
-      return unknowns.find((u) => u.name !== unknownX.name) ?? null;
-    });
-
-    setEnvSliderValues((prev) => {
-      let sliderValues = unknowns.reduce((total, current) => ({ ...total, [current.name]: 80 }), {});
-      for (const key of Object.keys(sliderValues)) {
-        if (key in prev) {
-          sliderValues[key] = prev[key];
-        }
+    if (!loaded) {
+      if (whatIfData) {
+        setUnknownX(whatIfData.unknownX);
+        setUnknownY(whatIfData.unknownY);
+        setEnvSliderValues(whatIfData.envSliderValues);
+      } else {
+        setUnknownX(unknowns[0] ?? null);
+        setUnknownY(unknowns[1] ?? null);
       }
-      return sliderValues;
+      setLoaded(true);
+    }
+  }, [whatIfData, loaded, unknowns]);
+
+  // Update unknowns and axes when updated
+  useEffect(() => {
+    if (loaded) {
+      if (unknowns.length === 1 && !unknownX && !unknownY) {
+        setUnknownX(unknowns[0]);
+        return;
+      }
+      setUnknownX((prevX) => {
+        if (unknowns.map((u) => u.name).includes(prevX?.name)) return prevX;
+        return unknowns.find((u) => u.name !== unknownY?.name) ?? null;
+      });
+      setUnknownY((prevY) => {
+        if (unknowns.map((u) => u.name).includes(prevY?.name)) return prevY;
+        return unknowns.find((u) => u.name !== unknownX?.name) ?? null;
+      });
+
+      setEnvSliderValues((prev) => {
+        let sliderValues = unknowns.reduce((total, current) => ({ ...total, [current.name]: 80 }), {});
+        for (const key of Object.keys(sliderValues)) {
+          if (key in prev) {
+            sliderValues[key] = prev[key];
+          }
+        }
+        return sliderValues;
+      });
+    }
+  }, [unknowns, unknownX, unknownY, loaded]);
+
+  // Update parent whenever any what if data changes
+  useEffect(() => {
+    setWhatIfData({
+      unknownX,
+      unknownY,
+      envSliderValues,
     });
-  }, [unknowns, unknownX, unknownY]);
+  }, [unknownX, unknownY, envSliderValues, setWhatIfData]);
 
   function swapAxes() {
     // No need for temp here since changes don't occur until rerender
@@ -453,12 +485,14 @@ function ScoreVisualization({ desiredScore, gradeData }) {
           <p>
             X Axis:{" "}
             <select
-              value={unknownX.name ?? ""}
+              value={unknownX?.name ?? ""}
               onChange={(e) => setUnknownX(unknowns.find((u) => u.name === e.target.value))}
             >
-              <option value="">----- None -----</option>
+              <option disabled value="">
+                ----- None -----
+              </option>
               {unknowns
-                .filter((u) => u.name !== unknownY.name)
+                .filter((u) => u.name !== unknownY?.name)
                 .map((u) => (
                   <option key={u.name} value={u.name}>
                     {u.name}
@@ -472,12 +506,14 @@ function ScoreVisualization({ desiredScore, gradeData }) {
           <p>
             Y Axis:{" "}
             <select
-              value={unknownY.name ?? ""}
+              value={unknownY?.name ?? ""}
               onChange={(e) => setUnknownY(unknowns.find((u) => u.name === e.target.value))}
             >
-              <option value="">----- None -----</option>
+              <option disabled value="">
+                ----- None -----
+              </option>
               {unknowns
-                .filter((u) => u.name !== unknownX.name)
+                .filter((u) => u.name !== unknownX?.name)
                 .map((u) => (
                   <option key={u.name} value={u.name}>
                     {u.name}
@@ -488,7 +524,7 @@ function ScoreVisualization({ desiredScore, gradeData }) {
         </div>
         <div className={`${styles.scoreSliders}`}>
           {unknowns
-            .filter((v) => v.name !== unknownX.name && v.name !== unknownY.name)
+            .filter((v) => v.name !== unknownX?.name && v.name !== unknownY?.name)
             .map((u) => (
               <div className={`${styles.slider}`} key={u.name}>
                 <p className={`${styles.name}`}>{u.name}: </p>
@@ -926,6 +962,7 @@ export default function Course({ loggedIn }) {
   const { title } = useParams();
 
   const [gradeData, setGradeData] = useState({});
+  const [whatIfData, setWhatIfData] = useState(null);
   const [currTitle, setCurrTitle] = useState(title);
   const [desiredScore, setDesiredScore] = useState(null);
 
@@ -938,6 +975,7 @@ export default function Course({ loggedIn }) {
       .then((course) => {
         setCurrTitle(course.title);
         setGradeData(course.root);
+        setWhatIfData(course.whatIfData);
         setDesiredScore(course.desiredScore);
         setLoaded(true);
       })
@@ -1036,7 +1074,8 @@ export default function Course({ loggedIn }) {
               saveCourse(title, {
                 title: currTitle,
                 root: cleanUpBeforeSaving(gradeData),
-                desiredScore: desiredScore,
+                whatIfData,
+                desiredScore,
               });
             }}
           >
@@ -1045,7 +1084,12 @@ export default function Course({ loggedIn }) {
           <button onClick={() => deleteCourse(title)}>Delete Course</button>
         </div>
       </div>
-      <ScoreVisualization desiredScore={desiredScore} gradeData={gradeData} />
+      <ScoreVisualization
+        desiredScore={desiredScore}
+        gradeData={gradeData}
+        whatIfData={whatIfData}
+        setWhatIfData={setWhatIfData}
+      />
       {!!settingsMenu && (
         <div className="darkOverlay" onClick={() => setSettingsMenu(null)}>
           {settingsMenu}
