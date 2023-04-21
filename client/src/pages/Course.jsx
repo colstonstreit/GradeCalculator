@@ -72,6 +72,13 @@ function Canvas({ computeScore, desiredScore }) {
   const [mouseDragStart, setMouseDragStart] = useState(null);
   const [mouseDragging, setMouseDragging] = useState(false);
 
+  const minBottomLeftPos = { x: -110, y: -110 };
+  const maxTopRightPos = { x: 210, y: 210 };
+
+  function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+  }
+
   function resizeCanvasToDisplaySize(canvas) {
     const { width, height } = canvas.getBoundingClientRect();
     if (canvas.width !== width || canvas.height !== height) {
@@ -97,8 +104,8 @@ function Canvas({ computeScore, desiredScore }) {
       const mouseDiffX = (-(mousePos.x - mouseDragStart.x) * worldSize.width) / width;
       const mouseDiffY = ((mousePos.y - mouseDragStart.y) * worldSize.height) / height;
       actualBottomLeftPos = {
-        x: bottomLeftPos.x + mouseDiffX,
-        y: bottomLeftPos.y + mouseDiffY,
+        x: clamp(bottomLeftPos.x + mouseDiffX, minBottomLeftPos.x, maxTopRightPos.x - worldSize.width),
+        y: clamp(bottomLeftPos.y + mouseDiffY, minBottomLeftPos.y, maxTopRightPos.y - worldSize.height),
       };
     }
 
@@ -153,19 +160,25 @@ function Canvas({ computeScore, desiredScore }) {
       setMouseDragStart(null);
       const mouseDiffX = (-(mousePos.x - mouseDragStart.x) * worldSize.width) / width;
       const mouseDiffY = ((mousePos.y - mouseDragStart.y) * worldSize.height) / height;
+
       setBottomLeftPos((prev) => ({
-        x: prev.x + mouseDiffX,
-        y: prev.y + mouseDiffY,
+        x: clamp(prev.x + mouseDiffX, minBottomLeftPos.x, maxTopRightPos.x - worldSize.width),
+        y: clamp(prev.y + mouseDiffY, minBottomLeftPos.y, maxTopRightPos.y - worldSize.height),
       }));
+    }
+
+    function mouseOutHandler(e) {
+      mouseUpHandler(e);
     }
 
     function mouseWheelHandler(e) {
       e.preventDefault();
 
-      const scale = 1 + e.deltaY * 0.005;
+      // Scale world size
+      const scale = e.deltaY >= 0 ? 1 + e.deltaY * 0.005 : 1 / (1 - e.deltaY * 0.005);
       const newWorldSize = {
-        width: Math.max(0.05, Math.min(1000, worldSize.width * scale)),
-        height: Math.max(0.05, Math.min(1000, worldSize.height * scale)),
+        width: Math.min(Math.max(0.05, worldSize.width * scale), maxTopRightPos.x - minBottomLeftPos.x),
+        height: Math.min(Math.max(0.05, worldSize.height * scale), maxTopRightPos.y - minBottomLeftPos.y),
       };
 
       const relativeMousePos = {
@@ -175,11 +188,21 @@ function Canvas({ computeScore, desiredScore }) {
 
       const mousePosInWorld = pixelToWorld(mousePos.x, mousePos.y);
 
+      // Cap world's bottom left
       const newBottomLeftPos = {
-        x: mousePosInWorld.x - relativeMousePos.x * newWorldSize.width,
-        y: mousePosInWorld.y - (1 - relativeMousePos.y) * newWorldSize.height,
+        x: Math.max(mousePosInWorld.x - relativeMousePos.x * newWorldSize.width, minBottomLeftPos.x),
+        y: Math.max(mousePosInWorld.y - (1 - relativeMousePos.y) * newWorldSize.height, minBottomLeftPos.y),
       };
 
+      // Cap world's top right
+      if (newBottomLeftPos.x + newWorldSize.width > maxTopRightPos.x) {
+        newBottomLeftPos.x = maxTopRightPos.x - newWorldSize.width;
+      }
+      if (newBottomLeftPos.y + newWorldSize.height > maxTopRightPos.y) {
+        newBottomLeftPos.y = maxTopRightPos.y - newWorldSize.height;
+      }
+
+      // Update world
       setWorldSize(newWorldSize);
       setBottomLeftPos(newBottomLeftPos);
     }
@@ -194,6 +217,7 @@ function Canvas({ computeScore, desiredScore }) {
       canvas.addEventListener("mousemove", mouseMoveHandler);
       canvas.addEventListener("mousedown", mouseDownHandler);
       canvas.addEventListener("mouseup", mouseUpHandler);
+      canvas.addEventListener("mouseout", mouseOutHandler);
       canvas.addEventListener("wheel", mouseWheelHandler);
     }
 
@@ -250,7 +274,8 @@ function Canvas({ computeScore, desiredScore }) {
       ctx.fillStyle = labelColor;
       ctx.strokeStyle = axisColor;
       ctx.textAlign = "center";
-      ctx.font = `bold 20px Arial`;
+      const fontSize = canvas.height / 30;
+      ctx.font = `bold ${fontSize}px Arial`;
 
       // Draw vertical lines
       for (let x = firstLeft; x <= actualBottomLeftPos.x + worldSize.width; x += xGap) {
@@ -316,7 +341,7 @@ function Canvas({ computeScore, desiredScore }) {
       const score = computeScore(coordinate.x, coordinate.y);
       ctx.textAlign = "center";
 
-      const fontSize = Math.floor(canvas.getBoundingClientRect().height / 20);
+      const fontSize = Math.floor(height / 25);
       ctx.font = `bold ${fontSize}px Arial`;
       const scoreBoxWidth = 10 * fontSize;
       const scoreBoxHeight = 3 * fontSize;
@@ -328,6 +353,7 @@ function Canvas({ computeScore, desiredScore }) {
 
       ctx.fillStyle = "black";
       ctx.strokeStyle = "black";
+      ctx.lineWidth = 2;
 
       ctx.strokeRect(drawX - scoreBoxWidth / 2, drawY - scoreBoxHeight / 2, scoreBoxWidth, scoreBoxHeight);
 
@@ -353,6 +379,7 @@ function Canvas({ computeScore, desiredScore }) {
         canvas.removeEventListener("mousemove", mouseMoveHandler);
         canvas.removeEventListener("mousedown", mouseDownHandler);
         canvas.removeEventListener("mouseup", mouseUpHandler);
+        canvas.removeEventListener("mouseout", mouseOutHandler);
         canvas.removeEventListener("wheel", mouseWheelHandler);
       }
     };
