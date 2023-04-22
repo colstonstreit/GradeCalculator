@@ -12,6 +12,7 @@ import {
   addIDs,
   cleanUpBeforeSaving,
   round,
+  floor,
 } from "../lib/scoreUtil";
 
 import styles from "../styles/Course.module.css";
@@ -360,7 +361,7 @@ function Canvas({ computeScore, desiredScore }) {
       ctx.strokeRect(drawX - scoreBoxWidth / 2, drawY - scoreBoxHeight / 2, scoreBoxWidth, scoreBoxHeight);
 
       ctx.fillText(`(${round(coordinate.x)}%, ${round(coordinate.y)}%)`, drawX, drawY - fontSize / 4);
-      ctx.fillText(`Score: ${round(score)}%`, drawX, drawY + fontSize);
+      ctx.fillText(`Score: ${floor(score)}%`, drawX, drawY + fontSize);
     }
 
     // Clear canvas
@@ -602,19 +603,19 @@ function Category({
 
   let scoreText = "";
   if (isLeaf) {
-    scoreText = scoreIgnoreCap === null ? "N/A" : `${round(scoreIgnoreCap)}%`;
+    scoreText = scoreIgnoreCap === null ? "N/A" : `${floor(scoreIgnoreCap)}%`;
   } else if (scoreIgnoreCap === null) {
     scoreText = "N/A";
   } else if (scoreIgnoreCap > 100) {
-    scoreText = capped ? "100%" : `${round(scoreIgnoreCap)}%`;
+    scoreText = capped ? "100%" : `${floor(scoreIgnoreCap)}%`;
   } else {
-    scoreText = `${round(scoreIgnoreCap)}%`;
+    scoreText = `${floor(scoreIgnoreCap)}%`;
   }
 
   let pointsText = pointsNum;
   if (!isLeaf) {
     const multiplier = parseFloat(scoreText);
-    pointsText = multiplier || multiplier === 0 ? round((multiplier * weight) / 100) : "?";
+    pointsText = multiplier || multiplier === 0 ? floor((multiplier * weight) / 100) : "?";
   }
 
   const handleFieldsChange = useCallback(
@@ -1043,7 +1044,7 @@ export default function Course({ loggedIn }) {
       ? "N/A"
       : scoreTextIgnoreCap > 100 && gradeData.capped
       ? 100
-      : round(scoreTextIgnoreCap);
+      : floor(scoreTextIgnoreCap);
 
   return (
     <AuthenticatedPage initiallyLoggedIn={loggedIn}>
