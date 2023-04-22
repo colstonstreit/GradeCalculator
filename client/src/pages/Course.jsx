@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { json, useNavigate, useParams } from "react-router-dom";
 import * as ArrayUtil from "../lib/arrayUtil";
 import StorageAPI from "../lib/storageAPI";
 import AuthenticatedPage from "../components/AuthenticatedPage";
@@ -1001,6 +1001,38 @@ export default function Course({ loggedIn }) {
       .catch((err) => alert(err.message));
   }
 
+  function exportCourse(data) {
+    // Recursive function to erase scores from existing obj (done in-place)
+    function clearScores(dataObj) {
+      if (dataObj.children === undefined) {
+        dataObj.pointsNum = null;
+      } else {
+        dataObj.children.forEach((child) => clearScores(child));
+      }
+      return dataObj;
+    }
+
+    const keepScores = window.confirm(
+      "Would you like to export your scores as well? If yes, click 'OK'. If you only want a template, click 'Cancel'."
+    );
+
+    // Get JSON
+    let jsonToWrite = "";
+    if (keepScores) {
+      jsonToWrite = JSON.stringify(data, undefined, 4);
+    } else {
+      const dataCopy = JSON.parse(JSON.stringify(data));
+      clearScores(dataCopy.root);
+      jsonToWrite = JSON.stringify({ ...dataCopy, whatIfData: undefined, desiredScore: undefined }, undefined, 4);
+    }
+
+    // Write to file (taken from StackOverflow)
+    const a = document.createElement("a");
+    a.href = "data:application/octet-stream," + encodeURIComponent(jsonToWrite);
+    a.download = keepScores ? `${data.title}.txt` : `${data.title}.template.txt`;
+    a.click();
+  }
+
   useEffect(getCourse, [loggedIn, navigate, title]);
 
   if (!loaded) return "";
@@ -1069,6 +1101,18 @@ export default function Course({ loggedIn }) {
           />
         </div>
         <div className={`${styles.manageButtons}`}>
+          <button
+            onClick={() => {
+              exportCourse({
+                title: currTitle,
+                root: cleanUpBeforeSaving(gradeData),
+                whatIfData,
+                desiredScore,
+              });
+            }}
+          >
+            Export Course
+          </button>
           <button
             onClick={() => {
               saveCourse(title, {
